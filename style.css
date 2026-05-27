@@ -384,14 +384,14 @@ body {
     font-weight: 700;
 }
 .amount-incoming { color: var(--accent-green); }
-.amount-outgoing { color: var(--text-primary); } /* Saídas são text-primary com sinal de (-) no mockup */
+.amount-outgoing { color: var(--text-primary); }
 
 .tx-date-label {
     color: var(--text-secondary);
     font-size: 0.75rem;
 }
 
-/* ECRÃ DE DETALHES DA TRANSAÇÃO (ECRÃ DA DIREITA) */
+/* ECRÃ DE DETALHES DA TRANSAÇÃO */
 .detail-header-nav {
     padding: 10px 0;
 }

@@ -1,7 +1,6 @@
 // ─── CONFIGURAÇÃO TOTALMENTE INTEGRADA COM O SEU BANCO DO SUPABASE ─────
 const SUPABASE_URL = "https://lfrizfbtvilggyocyewj.supabase.co";
-// BUG CORRIGIDO #1: Chave iniciava com 'EyJ' (maiúsculo) — JWT inválido. Corrigido para 'eyJ'.
-const SUPABASE_ANON_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Imxmcml6ZmJ0dmlsZ2d5b2N5ZXdqIiwicm9sZSI6ImFub24iLCJpYXQiOjE3Nzk4NDc3ODEsImV4cCI6MjA5NTQyMzc4MX0.lNseylQ2S-HkCsEl3qJNpXgzo6hrVHvGOwCsj4yVFa4";
+const SUPABASE_ANON_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Imxmcml6ZmJ0dmlsZ2d5b2N5ewdqIiwicm9sZSI6ImFub24iLCJpYXQiOjE3Nzk4NDc3ODEsImV4cCI6MjA5NTQyMzc4MX0.lNseylQ2S-HkCsEl3qJNpXgzo6hrVHvGOwCsj4yVFa4";
 
 const supabase = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
 
@@ -47,12 +46,9 @@ document.getElementById('register-form').addEventListener('submit', async (e) =>
     const modoVinculo = document.getElementById('reg-vinc').value;
 
     try {
-        // BUG CORRIGIDO #2: Após signUp o RLS bloqueia inserção de perfil pois a sessão
-        // ainda não está ativa. Solução: fazer signIn logo após o signUp para autenticar.
         const { data: authData, error: authError } = await supabase.auth.signUp({ email, password });
         if (authError) throw authError;
 
-        // Faz login imediatamente para obter sessão ativa antes de inserir o perfil
         const { data: signInData, error: signInError } = await supabase.auth.signInWithPassword({ email, password });
         if (signInError) throw signInError;
 
@@ -188,7 +184,8 @@ function renderDashboardList(transactions) {
     transactions.slice(0, 5).forEach(tx => {
         const marca = aplicarEstiloMarca(tx.descricao);
         const dotClasse = tx.cadastrado_por.toLowerCase() === 'ana' ? 'dot-ana' : 'dot-marco';
-        const valorSinal = tx.tipo === 'saida' ? `-R$ ${Math.abs(tx.valor).toFixed(2)}` : `+R$ ${tx.valor.toFixed(2)}`;
+        const valorNum = Number(tx.valor);
+        const valorSinal = tx.tipo === 'saida' ? `-R$ ${Math.abs(valorNum).toFixed(2)}` : `+R$ ${valorNum.toFixed(2)}`;
         const valorClasse = tx.tipo === 'entrada' ? 'amount-incoming' : 'amount-outgoing';
 
         const item = document.createElement('div');
@@ -217,10 +214,16 @@ function renderFullHistoryList(transactions) {
     const container = document.getElementById('full-transactions-list');
     container.innerHTML = '';
 
+    if (transactions.length === 0) {
+        container.innerHTML = `<span class="widget-meta-title" style="text-align:center; display:block;">Nenhuma transação no período.</span>`;
+        return;
+    }
+
     transactions.forEach(tx => {
         const marca = aplicarEstiloMarca(tx.descricao);
         const dotClasse = tx.cadastrado_por.toLowerCase() === 'ana' ? 'dot-ana' : 'dot-marco';
-        const valorSinal = tx.tipo === 'saida' ? `-R$ ${Math.abs(tx.valor).toFixed(2)}` : `+R$ ${tx.valor.toFixed(2)}`;
+        const valorNum = Number(tx.valor);
+        const valorSinal = tx.tipo === 'saida' ? `-R$ ${Math.abs(valorNum).toFixed(2)}` : `+R$ ${valorNum.toFixed(2)}`;
         const valorClasse = tx.tipo === 'entrada' ? 'amount-incoming' : 'amount-outgoing';
 
         const item = document.createElement('div');
@@ -252,14 +255,15 @@ function abrirDetalhesFatura(tx) {
     document.querySelectorAll('.spa-view').forEach(v => v.classList.add('hidden'));
     document.getElementById('view-tx-detail').classList.remove('hidden');
 
+    const valorNum = Number(tx.valor);
     document.getElementById('detail-nome-estabelecimento').innerText = tx.descricao;
-    document.getElementById('detail-valor').innerText = tx.tipo === 'saida' ? `-R$ ${Math.abs(tx.valor).toFixed(2)}` : `+R$ ${tx.valor.toFixed(2)}`;
+    document.getElementById('detail-valor').innerText = tx.tipo === 'saida' ? `-R$ ${Math.abs(valorNum).toFixed(2)}` : `+R$ ${valorNum.toFixed(2)}`;
     document.getElementById('detail-avatar').className = `detail-brand-lg ${marca.classe}`;
     document.getElementById('detail-avatar').innerText = marca.logo;
 
     document.getElementById('detail-cartao').innerText = tx.cartao_info || 'Sem cartão vinculado';
     document.getElementById('detail-tipo').innerText = tx.categoria;
-    document.getElementById('detail-id-tx').innerText = tx.id.split('-')[0].toUpperCase();
+    document.getElementById('detail-id-tx').innerText = tx.id ? tx.id.split('-')[0].toUpperCase() : '---';
     document.getElementById('detail-status').innerText = tx.status || 'Confirmado';
 
     const dataFormatada = new Date(tx.data_pagamento).toLocaleDateString('pt-BR', { weekday: 'short', day: 'numeric', month: 'long', hour: '2-digit', minute: '2-digit' });
@@ -269,13 +273,13 @@ function abrirDetalhesFatura(tx) {
     const dotColor = tx.cadastrado_por.toLowerCase() === 'ana' ? 'dot-ana' : 'dot-marco';
     document.getElementById('detail-autor').innerHTML = `<span class="user-dot ${dotColor}"></span> ${tx.cadastrado_por}`;
 
-    // BUG CORRIGIDO #3: 'tx.parcela_current' não existe — campo correto é 'parcela_atual'
-    document.getElementById('detail-parcelas').innerText = `${tx.parcela_atual}/${tx.parcela_total} ${tx.parcela_total > 1 ? `(Restam ${tx.parcela_total - tx.parcela_atual} faturas)` : ''}`;
+    const pAtual = tx.parcela_atual || 1;
+    const pTotal = tx.parcela_total || 1;
+    document.getElementById('detail-parcelas').innerText = `${pAtual}/${pTotal} ${pTotal > 1 ? `(Restam ${pTotal - pAtual} faturas)` : ''}`;
 }
 
 document.getElementById('btn-back-to-dash').addEventListener('click', () => {
     document.getElementById('view-tx-detail').classList.add('hidden');
-    // BUG CORRIGIDO #4: Volta para a view que estava ativa antes de abrir o detalhe
     const targetView = appState.viewAtiva || 'dashboard';
     document.getElementById(`view-${targetView}`).classList.remove('hidden');
 });
@@ -291,7 +295,6 @@ document.querySelectorAll('.btn-action-trigger').forEach(btn => {
 document.getElementById('nav-direct-plus-btn').addEventListener('click', () => abrirFormTransacao('saida'));
 
 function abrirFormTransacao(type) {
-    appState.viewAtiva = 'add-tx';
     document.querySelectorAll('.spa-view').forEach(v => v.classList.add('hidden'));
     document.getElementById('view-add-tx').classList.remove('hidden');
     document.getElementById('form-tx-type').value = type;
@@ -299,9 +302,9 @@ function abrirFormTransacao(type) {
 }
 
 document.getElementById('btn-cancel-tx-form').addEventListener('click', () => {
-    appState.viewAtiva = 'dashboard';
     document.getElementById('view-add-tx').classList.add('hidden');
-    document.getElementById('view-dashboard').classList.remove('hidden');
+    const targetView = appState.viewAtiva || 'dashboard';
+    document.getElementById(`view-${targetView}`).classList.remove('hidden');
 });
 
 // Envio do formulário de transação para o Supabase
@@ -325,9 +328,9 @@ document.getElementById('tx-mutation-form').addEventListener('submit', async (e)
             tipo,
             valor,
             cartao_info,
-            // BUG CORRIGIDO #5: Campo era 'parcela_current' — corrigido para 'parcela_atual' (igual ao schema SQL)
             parcela_atual,
-            parcela_total
+            parcela_total,
+            data_pagamento: new Date().toISOString()
         }]);
 
         if (error) throw error;
@@ -335,9 +338,9 @@ document.getElementById('tx-mutation-form').addEventListener('submit', async (e)
         showToast("Transação lançada!", "success");
         document.getElementById('tx-mutation-form').reset();
 
-        appState.viewAtiva = 'dashboard';
         document.getElementById('view-add-tx').classList.add('hidden');
-        document.getElementById('view-dashboard').classList.remove('hidden');
+        const targetView = appState.viewAtiva || 'dashboard';
+        document.getElementById(`view-${targetView}`).classList.remove('hidden');
         refreshAllViews();
     } catch (err) {
         showToast(err.message, "error");
@@ -373,6 +376,8 @@ async function refreshGoalsWidget() {
         const { data: metas, error } = await supabase.from('goals').select('*').eq('couple_id', appState.coupleId).limit(1);
         if (error) throw error;
 
+        const containerAb = document.getElementById('main-goals-container');
+
         if (metas && metas.length > 0) {
             const m = metas[0];
             const pct = m.valor_total > 0 ? Math.min(Math.round((m.valor_guardado / m.valor_total) * 100), 100) : 0;
@@ -381,7 +386,6 @@ async function refreshGoalsWidget() {
             document.getElementById('lbl-widget-goal-percent').innerText = `${pct}% concluída`;
             document.getElementById('bar-widget-goal-fill').style.width = `${pct}%`;
 
-            const containerAb = document.getElementById('main-goals-container');
             containerAb.innerHTML = `
                 <div class="goals-widget-card" style="background:var(--bg-card)">
                     <div class="goal-progress-row">
@@ -391,6 +395,12 @@ async function refreshGoalsWidget() {
                     <div class="goal-progress-bar-bg" style="margin-top:8px; height:8px;"><div class="goal-progress-bar-fill" style="width:${pct}%;"></div></div>
                 </div>
             `;
+        } else {
+            document.getElementById('lbl-widget-goal-name').innerText = 'Nenhuma meta ativa';
+            document.getElementById('lbl-widget-goal-percent').innerText = '0% concluída';
+            document.getElementById('bar-widget-goal-fill').style.width = '0%';
+            
+            containerAb.innerHTML = `<span class="widget-meta-title" style="text-align:center; display:block; margin-top:10px;">Nenhuma meta cadastrada no momento.</span>`;
         }
     } catch (err) {
         console.log("Erro ao carregar widget de metas:", err.message);
@@ -444,7 +454,6 @@ document.getElementById('btn-logout').addEventListener('click', async () => {
     showToast("Sessão encerrada.", "info");
 });
 
-// BUG CORRIGIDO #6: bootstrapSession precisa de await para não causar race conditions
 async function verificarSessaoAtiva() {
     const { data } = await supabase.auth.getSession();
     if (data?.session?.user) {
