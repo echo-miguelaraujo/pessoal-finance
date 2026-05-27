@@ -3,93 +3,22 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Nossas Finanças Compartilhadas</title>
+    <title>Minhas Finanças</title>
     <link rel="stylesheet" href="style.css">
 </head>
 <body>
 
     <div id="toast-container" class="toast-container"></div>
 
-    <section id="auth-screen" class="auth-container">
-        <div class="auth-card">
-            <div class="auth-header">
-                <h2>Finanças em Casal</h2>
-                <p>Gerencie o orçamento compartilhado de forma simples.</p>
-            </div>
-            
-            <div class="auth-tabs">
-                <button id="tab-login-btn" class="auth-tab active">Entrar</button>
-                <button id="tab-register-btn" class="auth-tab">Criar Conta</button>
-            </div>
-
-            <form id="login-form" class="auth-form">
-                <div class="form-group">
-                    <label for="login-email">E-mail</label>
-                    <input type="email" id="login-email" required placeholder="exemplo@email.com">
-                </div>
-                <div class="form-group">
-                    <label for="login-password">Senha</label>
-                    <input type="password" id="login-password" required placeholder="Sua senha">
-                </div>
-                <button type="submit" class="btn-primary">Entrar no Painel</button>
-            </form>
-
-            <!-- CORRIGIDO: campos com required -->
-            <form id="register-form" class="auth-form hidden">
-                <div class="form-group">
-                    <label for="reg-nome">Seu Nome</label>
-                    <input type="text" id="reg-nome" required placeholder="Ex: Ana ou Marco">
-                </div>
-                <div class="form-group">
-                    <label for="reg-papel">Seu Papel</label>
-                    <select id="reg-papel">
-                        <option value="Esposo">Esposo</option>
-                        <option value="Esposa">Esposa</option>
-                        <option value="Parceiro">Parceiro</option>
-                        <option value="Parceira">Parceira</option>
-                    </select>
-                </div>
-                <div class="form-group">
-                    <label for="reg-email">E-mail</label>
-                    <input type="email" id="reg-email" required placeholder="seu-email@email.com">
-                </div>
-                <div class="form-group">
-                    <label for="reg-password">Senha</label>
-                    <input type="password" id="reg-password" required minlength="6" placeholder="Mínimo 6 caracteres">
-                </div>
-                
-                <div class="form-group">
-                    <label for="reg-vinc">Vincular Conta</label>
-                    <select id="reg-vinc">
-                        <option value="criar">Sou o primeiro (Gerar novo código de Casal)</option>
-                        <option value="entrar">Minha parceria já tem conta (Colar código abaixo)</option>
-                    </select>
-                </div>
-                
-                <div id="couple-code-group" class="form-group hidden">
-                    <label for="reg-couple-id">Código de Casal da Parceria</label>
-                    <input type="text" id="reg-couple-id" placeholder="Cole o UUID enviado pelo parceiro">
-                </div>
-
-                <button type="submit" class="btn-primary">Criar Conta Compartilhada</button>
-            </form>
-        </div>
-    </section>
-
-    <main id="app-screen" class="app-container hidden">
+    <main id="app-screen" class="app-container">
         
         <header class="app-header">
             <div class="header-user-info">
-                <div class="avatar-group">
-                    <div class="avatar-circle">M</div>
-                    <div class="avatar-circle avatar-pink">A</div>
-                </div>
                 <div>
-                    <h1 id="txt-welcome-title">Nossas Finanças Compartilhadas</h1>
-                    <span id="txt-couple-code-display" class="couple-token">Código: Carregando...</span>
+                    <h1>Minhas Finanças</h1>
+                    <span class="couple-token">Dados salvos localmente</span>
                 </div>
             </div>
-            <button id="btn-logout" class="btn-icon-logout" title="Sair da Conta">✕</button>
         </header>
 
         <div class="month-navigator">
@@ -99,191 +28,41 @@
         </div>
 
         <div class="content-wrapper">
-
             <section id="view-dashboard" class="spa-view">
                 <div class="balance-card">
-                    <span class="balance-label">Nosso Saldo</span>
+                    <span class="balance-label">Meu Saldo</span>
                     <h2 id="dash-total-balance" class="balance-amount">R$ 0,00</h2>
                     <div class="balance-actions">
                         <button class="btn-action-trigger trigger-out" data-type="saida">＋ Adicionar Saída</button>
                         <button class="btn-action-trigger trigger-in" data-type="entrada">＋ Adicionar Entrada</button>
                     </div>
                 </div>
-
                 <div class="section-container">
                     <h3 class="section-title">Transações Recentes</h3>
-                    
                     <div id="dash-goals-widget" class="goals-widget-card">
-                        <span class="widget-meta-title">Módulo de Metas Ativas</span>
+                        <span class="widget-meta-title">Meta Atual</span>
                         <div class="goal-progress-row">
-                            <span id="lbl-widget-goal-name">Carregando...</span>
+                            <span id="lbl-widget-goal-name">Nenhuma meta</span>
                             <span id="lbl-widget-goal-percent">0%</span>
                         </div>
                         <div class="goal-progress-bar-bg">
                             <div id="bar-widget-goal-fill" class="goal-progress-bar-fill" style="width: 0%;"></div>
                         </div>
                     </div>
-
                     <div id="dash-recent-list" class="transactions-list"></div>
                 </div>
             </section>
 
-            <section id="view-add-tx" class="spa-view hidden">
-                <div class="form-card">
-                    <h3 id="add-tx-title" class="section-title">Nova Despesa / Entrada</h3>
-                    <form id="tx-mutation-form">
-                        <input type="hidden" id="form-tx-type" value="saida">
-                        
-                        <div class="form-group">
-                            <label for="form-tx-desc">Descrição / Estabelecimento</label>
-                            <input type="text" id="form-tx-desc" required placeholder="Ex: Netflix, iFood, Supermercado XYZ">
-                        </div>
-                        
-                        <div class="form-row">
-                            <div class="form-group">
-                                <label for="form-tx-value">Valor (R$)</label>
-                                <input type="number" step="0.01" id="form-tx-value" required placeholder="0,00">
-                            </div>
-                            <div class="form-group">
-                                <label for="form-tx-cat">Categoria</label>
-                                <select id="form-tx-cat">
-                                    <option value="Compras Variáveis">Compras Variáveis</option>
-                                    <option value="Assinatura Mensal">Assinatura Mensal</option>
-                                    <option value="Restaurante">Restaurante</option>
-                                    <option value="Depósito">Depósito</option>
-                                    <option value="Pagamento Fixo">Pagamento Fixo</option>
-                                </select>
-                            </div>
-                        </div>
-
-                        <div class="form-group">
-                            <label for="form-tx-card">Cartão / Informação Opcional</label>
-                            <input type="text" id="form-tx-card" placeholder="Ex: MasterCard •••• 7289">
-                        </div>
-
-                        <div class="form-row">
-                            <div class="form-group">
-                                <label for="form-tx-part-current">Parcela Atual</label>
-                                <input type="number" id="form-tx-part-current" value="1">
-                            </div>
-                            <div class="form-group">
-                                <label for="form-tx-part-total">Total Parcelas</label>
-                                <input type="number" id="form-tx-part-total" value="1">
-                            </div>
-                        </div>
-
-                        <div class="form-actions-block">
-                            <button type="button" id="btn-cancel-tx-form" class="btn-secondary">Cancelar</button>
-                            <button type="submit" class="btn-primary">Salvar Lançamento</button>
-                        </div>
-                    </form>
-                </div>
-            </section>
-
-            <section id="view-tx-detail" class="spa-view hidden">
-                <div class="detail-header-nav">
-                    <button id="btn-back-to-dash" class="btn-back-cross">✕</button>
-                </div>
-                <div class="detail-main-header">
-                    <div id="detail-avatar" class="detail-brand-lg">XYZ</div>
-                    <h2 id="detail-nome-estabelecimento">Supermercado XYZ</h2>
-                    <span id="detail-sub-cat">Compras (Ana)</span>
-                    <div id="detail-valor" class="detail-amount-lg">-R$ 310,00</div>
-                    <span id="detail-data-hora" class="detail-time-label">Qui, 27 de Jul, 14:30</span>
-                </div>
-                <div class="quick-actions-row">
-                    <button class="btn-quick-pill">Analisar</button>
-                    <button class="btn-quick-pill">Repetir (Fixo)</button>
-                    <button class="btn-quick-pill">Vincular a Meta</button>
-                </div>
-                <div class="detail-info-table">
-                    <div class="detail-row">
-                        <span class="detail-label">Card</span>
-                        <span id="detail-cartao" class="detail-value">💳 MasterCard •••• 7289</span>
-                    </div>
-                    <div class="detail-row">
-                        <span class="detail-label">Tipo</span>
-                        <span id="detail-tipo" class="detail-value">Compras Variáveis</span>
-                    </div>
-                    <div class="detail-row">
-                        <span class="detail-label">Nº Transação</span>
-                        <span id="detail-id-tx" class="detail-value">123456789</span>
-                    </div>
-                    <div class="detail-row">
-                        <span class="detail-label">Status</span>
-                        <span id="detail-status" class="detail-value text-green">Confirmado</span>
-                    </div>
-                    <div class="detail-row">
-                        <span class="detail-label">Cadastrado por</span>
-                        <span id="detail-autor" class="detail-value">Ana</span>
-                    </div>
-                    <div class="detail-row">
-                        <span class="detail-label">Parcelas</span>
-                        <span id="detail-parcelas" class="detail-value">1/3</span>
-                    </div>
-                </div>
-            </section>
-
-            <section id="view-transactions" class="spa-view hidden">
-                <h3 class="section-title">Histórico Geral</h3>
-                <div id="full-transactions-list" class="transactions-list"></div>
-            </section>
-
-            <section id="view-goals" class="spa-view hidden">
-                <h3 class="section-title">Metas do Casal</h3>
-                <form id="goal-creation-form" class="goal-form-inline">
-                    <input type="text" id="goal-name-input" required placeholder="Nova Meta. Ex: Viagem">
-                    <input type="number" id="goal-value-input" required placeholder="Valor R$">
-                    <button type="submit" class="btn-primary-sm">+</button>
-                </form>
-                <div id="main-goals-container" style="margin-top:20px;"></div>
-            </section>
-
-            <section id="view-configurations" class="spa-view hidden">
-                <h3 class="section-title">Configurações</h3>
-                <div class="detail-info-table">
-                    <div class="detail-row">
-                        <span class="detail-label">Seu Perfil</span>
-                        <span id="cfg-profile-name" class="detail-value">Carregando...</span>
-                    </div>
-                    <div class="detail-row">
-                        <span class="detail-label">Vínculo</span>
-                        <span id="cfg-profile-role" class="detail-value">Carregando...</span>
-                    </div>
-                    <div class="detail-row" style="flex-direction:column; gap:8px; align-items:flex-start;">
-                        <span class="detail-label">ID de Compartilhamento do Casal:</span>
-                        <input type="text" id="cfg-couple-id-input" readonly style="width:100%; background:#222; border:1px solid #333; color:#aaa; padding:8px; border-radius:8px; font-size:0.8rem;">
-                    </div>
-                </div>
-            </section>
-
-        </div>
+            </div>
 
         <nav class="bottom-nav">
-            <button class="nav-item active" data-view="dashboard">
-                <span class="nav-icon">🏠</span>
-                <span>Home</span>
-            </button>
-            <button class="nav-item" data-view="transactions">
-                <span class="nav-icon">📊</span>
-                <span>Histórico</span>
-            </button>
-            <button class="nav-item" id="nav-direct-plus-btn">
-                <span class="nav-icon icon-plus-center">＋</span>
-                <span>Plus</span>
-            </button>
-            <button class="nav-item" data-view="goals">
-                <span class="nav-icon">🎯</span>
-                <span>Metas</span>
-            </button>
-            <button class="nav-item" data-view="configurations">
-                <span class="nav-icon">👥</span>
-                <span>Config</span>
-            </button>
+            <button class="nav-item active" data-view="dashboard"><span class="nav-icon">🏠</span><span>Home</span></button>
+            <button class="nav-item" data-view="transactions"><span class="nav-icon">📊</span><span>Histórico</span></button>
+            <button class="nav-item" id="nav-direct-plus-btn"><span class="nav-icon icon-plus-center">＋</span><span>Plus</span></button>
+            <button class="nav-item" data-view="goals"><span class="nav-icon">🎯</span><span>Metas</span></button>
         </nav>
-
     </main>
-    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+
     <script src="app.js"></script>
 </body>
 </html>
