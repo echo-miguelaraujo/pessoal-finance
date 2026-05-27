@@ -1,11 +1,9 @@
 // ─── CONFIGURAÇÃO TOTALMENTE INTEGRADA COM O SEU BANCO DO SUPABASE ─────
-import { createClient } from 'https://esm.sh/@supabase/supabase-js@2';
-
 const SUPABASE_URL = "https://lfrizfbtvilggyocyewj.supabase.co";
 const SUPABASE_ANON_KEY = "EyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Imxmcml6ZmJ0dmlsZ2d5b2N5ZXdqIiwicm9sZSI6ImFub24iLCJpYXQiOjE3Nzk4NDc3ODEsImV4cCI6MjA5NTQyMzc4MX0.lNseylQ2S-HkCsEl3qJNpXgzo6hrVHvGOwCsj4yVFa4";
 
-const supabase = createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
-
+// Usa o window.supabase em vez do import
+const supabase = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
 // ESTADO CENTRAL DO APLICATIVO SPA
 const appState = {
     user: null,
