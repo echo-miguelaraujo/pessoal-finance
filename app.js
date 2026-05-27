@@ -2,7 +2,7 @@
 const SUPABASE_URL = "https://lfrizfbtvilggyocyewj.supabase.co";
 const SUPABASE_ANON_KEY = "EyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Imxmcml6ZmJ0dmlsZ2d5b2N5ZXdqIiwicm9sZSI6ImFub24iLCJpYXQiOjE3Nzk4NDc3ODEsImV4cCI6MjA5NTQyMzc4MX0.lNseylQ2S-HkCsEl3qJNpXgzo6hrVHvGOwCsj4yVFa4";
 
-// Usa o window.supabase em vez do import
+// ATENÇÃO: Sem a palavra 'import' aqui em cima!
 const supabase = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
 // ESTADO CENTRAL DO APLICATIVO SPA
 const appState = {
