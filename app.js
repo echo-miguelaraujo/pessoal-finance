@@ -1,10 +1,9 @@
-// ─── CONFIGURAÇÃO TOTALMENTE INTEGRADA COM O SEU BANCO DO SUPABASE ─────
+// ─── CONFIGURAÇÃO SUPABASE ────────────────────────────────────────────────
 const SUPABASE_URL = "https://lfrizfbtvilggyocyewj.supabase.co";
 const SUPABASE_ANON_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Imxmcml6ZmJ0dmlsZ2d5b2N5ewdqIiwicm9sZSI6ImFub24iLCJpYXQiOjE3Nzk4NDc3ODEsImV4cCI6MjA5NTQyMzc4MX0.lNseylQ2S-HkCsEl3qJNpXgzo6hrVHvGOwCsj4yVFa4";
 
 const supabase = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
 
-// ESTADO CENTRAL DO APLICATIVO SPA
 const appState = {
     user: null,
     profile: null,
@@ -13,7 +12,7 @@ const appState = {
     viewAtiva: 'dashboard'
 };
 
-// ─── AUTHENTICATION LOGIC ────────────────────────────────────────────
+// ─── AUTH ─────────────────────────────────────────────────────────────────
 
 document.getElementById('tab-login-btn').addEventListener('click', () => toggleAuthTabs('login'));
 document.getElementById('tab-register-btn').addEventListener('click', () => toggleAuthTabs('register'));
@@ -36,72 +35,95 @@ function toggleAuthTabs(mode) {
     }
 }
 
-// Submissão do Formulário de Registro
+// CORRIGIDO: registro com feedback visual no botão e toast duradouro
 document.getElementById('register-form').addEventListener('submit', async (e) => {
     e.preventDefault();
-    const nome = document.getElementById('reg-nome').value;
+    const btn = e.target.querySelector('button[type="submit"]');
+    btn.disabled = true;
+    btn.innerText = 'Criando conta...';
+
+    const nome = document.getElementById('reg-nome').value.trim();
     const papel = document.getElementById('reg-papel').value;
-    const email = document.getElementById('reg-email').value;
+    const email = document.getElementById('reg-email').value.trim();
     const password = document.getElementById('reg-password').value;
     const modoVinculo = document.getElementById('reg-vinc').value;
 
     try {
+        // 1. Cria usuário no Auth
         const { data: authData, error: authError } = await supabase.auth.signUp({ email, password });
         if (authError) throw authError;
 
+        // 2. Faz login imediatamente para ter sessão ativa (necessário para RLS)
         const { data: signInData, error: signInError } = await supabase.auth.signInWithPassword({ email, password });
         if (signInError) throw signInError;
 
         const userId = signInData.user.id;
         let coupleId = null;
 
+        // 3. Cria ou usa couple_id existente
         if (modoVinculo === 'criar') {
-            const { data: cData, error: cError } = await supabase.from('couples').insert([{}]).select().single();
-            if (cError) throw cError;
+            const { data: cData, error: cError } = await supabase
+                .from('couples')
+                .insert([{}])
+                .select()
+                .single();
+            if (cError) throw new Error(`Erro ao criar casal: ${cError.message}`);
             coupleId = cData.id;
         } else {
             coupleId = document.getElementById('reg-couple-id').value.trim();
             if (!coupleId) throw new Error("Por favor, cole o código de casal da sua parceria.");
         }
 
+        // 4. Cria perfil vinculado
         const { error: profError } = await supabase.from('profiles').insert([{
             id: userId,
             couple_id: coupleId,
             nome: nome,
             papel: papel
         }]);
-        if (profError) throw profError;
+        if (profError) throw new Error(`Erro ao criar perfil: ${profError.message}`);
 
-        showToast("Conta compartilhada criada com sucesso!", "success");
+        showToast("Conta criada com sucesso!", "success");
         await bootstrapSession(signInData.user);
+
     } catch (err) {
         showToast(err.message, "error");
+        btn.disabled = false;
+        btn.innerText = 'Criar Conta Compartilhada';
     }
 });
 
-// Submissão do Formulário de Login
 document.getElementById('login-form').addEventListener('submit', async (e) => {
     e.preventDefault();
-    const email = document.getElementById('login-email').value;
+    const btn = e.target.querySelector('button[type="submit"]');
+    btn.disabled = true;
+    btn.innerText = 'Entrando...';
+
+    const email = document.getElementById('login-email').value.trim();
     const password = document.getElementById('login-password').value;
 
     try {
         const { data: authData, error: authError } = await supabase.auth.signInWithPassword({ email, password });
         if (authError) throw authError;
-
         await bootstrapSession(authData.user);
     } catch (err) {
         showToast(err.message, "error");
+        btn.disabled = false;
+        btn.innerText = 'Entrar no Painel';
     }
 });
 
-// Inicialização e Carga de Sessão
 async function bootstrapSession(user) {
     appState.user = user;
 
-    const { data: profile, error: profError } = await supabase.from('profiles').select('*').eq('id', user.id).single();
+    const { data: profile, error: profError } = await supabase
+        .from('profiles')
+        .select('*')
+        .eq('id', user.id)
+        .single();
+
     if (profError || !profile) {
-        showToast("Perfil não localizado.", "error");
+        showToast(`Perfil não localizado: ${profError?.message}`, "error");
         return;
     }
 
@@ -120,25 +142,25 @@ async function bootstrapSession(user) {
     refreshAllViews();
 }
 
-// ─── LÓGICA DE MAPEAMENTO VISUAL (FIEL AO MOCKUP) ────────────────────
+// ─── VISUAL DE MARCAS ─────────────────────────────────────────────────────
 
 function aplicarEstiloMarca(nome) {
     const n = nome.toLowerCase();
     if (n.includes('netflix')) return { classe: 'brand-netflix', logo: 'N' };
     if (n.includes('ifood')) return { classe: 'brand-ifood', logo: 'iF' };
     if (n.includes('supermercado') || n.includes('xyz')) return { classe: 'brand-market', logo: 'XYZ' };
-    if (n.includes('pix') || n.includes('transferencia') || n.includes('depósito ana')) return { classe: 'brand-pix', logo: '❖' };
-    if (n.includes('salario') || n.includes('pagamento')) return { classe: 'brand-salary', logo: '💼' };
+    if (n.includes('pix') || n.includes('transferencia') || n.includes('depósito')) return { classe: 'brand-pix', logo: '❖' };
+    if (n.includes('salario') || n.includes('salário')) return { classe: 'brand-salary', logo: '💼' };
     if (n.includes('aluguel') || n.includes('fixo')) return { classe: 'brand-home', logo: '🏠' };
     return { classe: 'brand-generic', logo: '💰' };
 }
 
-// ─── PROCESSAMENTO DE DADOS E RENDERIZAÇÃO ───────────────────────────
+// ─── DADOS E RENDERIZAÇÃO ─────────────────────────────────────────────────
 
 async function refreshAllViews() {
     if (!appState.coupleId) return;
 
-    const meses = ["Janeiro", "Fevereiro", "Março", "Abril", "Maio", "Junho", "Julho", "Agosto", "Setembro", "Outubro", "Novembro", "Dezembro"];
+    const meses = ["Janeiro","Fevereiro","Março","Abril","Maio","Junho","Julho","Agosto","Setembro","Outubro","Novembro","Dezembro"];
     document.getElementById('current-month-label').innerText = `${meses[appState.mesAtual.getMonth()]} de ${appState.mesAtual.getFullYear()}`;
 
     const primeiroDia = new Date(appState.mesAtual.getFullYear(), appState.mesAtual.getMonth(), 1).toISOString();
@@ -161,7 +183,8 @@ async function refreshAllViews() {
             else total -= Number(t.valor);
         });
 
-        document.getElementById('dash-total-balance').innerText = new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(total);
+        document.getElementById('dash-total-balance').innerText =
+            new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(total);
 
         renderDashboardList(txList);
         renderFullHistoryList(txList);
@@ -183,10 +206,11 @@ function renderDashboardList(transactions) {
 
     transactions.slice(0, 5).forEach(tx => {
         const marca = aplicarEstiloMarca(tx.descricao);
-        const dotClasse = tx.cadastrado_por.toLowerCase() === 'ana' ? 'dot-ana' : 'dot-marco';
-        const valorNum = Number(tx.valor);
-        const valorSinal = tx.tipo === 'saida' ? `-R$ ${Math.abs(valorNum).toFixed(2)}` : `+R$ ${valorNum.toFixed(2)}`;
-        const valorClasse = tx.tipo === 'entrada' ? 'amount-incoming' : 'amount-outgoing';
+        const dotClasse = tx.cadastrado_por?.toLowerCase() === 'ana' ? 'dot-ana' : 'dot-marco';
+        const sinal = tx.tipo === 'entrada' ? '+' : '-';
+        const classeValor = tx.tipo === 'entrada' ? 'amount-incoming' : 'amount-outgoing';
+        const valorFormatado = new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(tx.valor);
+        const dataFormatada = new Date(tx.data_pagamento).toLocaleDateString('pt-BR', { day: '2-digit', month: 'short' });
 
         const item = document.createElement('div');
         item.className = 'transaction-item';
@@ -196,16 +220,17 @@ function renderDashboardList(transactions) {
                 <div class="tx-info-block">
                     <span class="tx-title-name">${tx.descricao}</span>
                     <span class="tx-subtitle-meta">
-                        <span class="user-dot ${dotClasse}"></span> ${tx.categoria}
+                        <span class="user-dot ${dotClasse}"></span>
+                        ${tx.cadastrado_por} · ${tx.categoria}
                     </span>
                 </div>
             </div>
             <div class="tx-row-right">
-                <span class="tx-amount-value ${valorClasse}">${valorSinal}</span>
-                <span class="tx-date-label">${new Date(tx.data_pagamento).toLocaleDateString('pt-BR', {day: 'numeric', month: 'short'})}</span>
-            </div>
-        `;
-        item.addEventListener('click', () => abrirDetalhesFatura(tx));
+                <span class="tx-amount-value ${classeValor}">${sinal}${valorFormatado}</span>
+                <span class="tx-date-label">${dataFormatada}</span>
+            </div>`;
+
+        item.addEventListener('click', () => abrirDetalheTransacao(tx));
         container.appendChild(item);
     });
 }
@@ -215,16 +240,17 @@ function renderFullHistoryList(transactions) {
     container.innerHTML = '';
 
     if (transactions.length === 0) {
-        container.innerHTML = `<span class="widget-meta-title" style="text-align:center; display:block;">Nenhuma transação no período.</span>`;
+        container.innerHTML = `<span class="widget-meta-title" style="text-align:center; display:block;">Nenhuma transação neste mês.</span>`;
         return;
     }
 
     transactions.forEach(tx => {
         const marca = aplicarEstiloMarca(tx.descricao);
-        const dotClasse = tx.cadastrado_por.toLowerCase() === 'ana' ? 'dot-ana' : 'dot-marco';
-        const valorNum = Number(tx.valor);
-        const valorSinal = tx.tipo === 'saida' ? `-R$ ${Math.abs(valorNum).toFixed(2)}` : `+R$ ${valorNum.toFixed(2)}`;
-        const valorClasse = tx.tipo === 'entrada' ? 'amount-incoming' : 'amount-outgoing';
+        const dotClasse = tx.cadastrado_por?.toLowerCase() === 'ana' ? 'dot-ana' : 'dot-marco';
+        const sinal = tx.tipo === 'entrada' ? '+' : '-';
+        const classeValor = tx.tipo === 'entrada' ? 'amount-incoming' : 'amount-outgoing';
+        const valorFormatado = new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(tx.valor);
+        const dataFormatada = new Date(tx.data_pagamento).toLocaleDateString('pt-BR', { day: '2-digit', month: 'short' });
 
         const item = document.createElement('div');
         item.className = 'transaction-item';
@@ -234,48 +260,41 @@ function renderFullHistoryList(transactions) {
                 <div class="tx-info-block">
                     <span class="tx-title-name">${tx.descricao}</span>
                     <span class="tx-subtitle-meta">
-                        <span class="user-dot ${dotClasse}"></span> ${tx.categoria} (${tx.cadastrado_por})
+                        <span class="user-dot ${dotClasse}"></span>
+                        ${tx.cadastrado_por} · ${tx.categoria}
                     </span>
                 </div>
             </div>
             <div class="tx-row-right">
-                <span class="tx-amount-value ${valorClasse}">${valorSinal}</span>
-                <span class="tx-date-label">${new Date(tx.data_pagamento).toLocaleDateString('pt-BR', {day:'numeric', month:'numeric'})}</span>
-            </div>
-        `;
-        item.addEventListener('click', () => abrirDetalhesFatura(tx));
+                <span class="tx-amount-value ${classeValor}">${sinal}${valorFormatado}</span>
+                <span class="tx-date-label">${dataFormatada}</span>
+            </div>`;
+
+        item.addEventListener('click', () => abrirDetalheTransacao(tx));
         container.appendChild(item);
     });
 }
 
-// Lógica da Tela de Detalhes da Fatura
-function abrirDetalhesFatura(tx) {
-    const marca = aplicarEstiloMarca(tx.descricao);
-
+function abrirDetalheTransacao(tx) {
     document.querySelectorAll('.spa-view').forEach(v => v.classList.add('hidden'));
     document.getElementById('view-tx-detail').classList.remove('hidden');
 
-    const valorNum = Number(tx.valor);
-    document.getElementById('detail-nome-estabelecimento').innerText = tx.descricao;
-    document.getElementById('detail-valor').innerText = tx.tipo === 'saida' ? `-R$ ${Math.abs(valorNum).toFixed(2)}` : `+R$ ${valorNum.toFixed(2)}`;
+    const marca = aplicarEstiloMarca(tx.descricao);
+    const sinal = tx.tipo === 'entrada' ? '+' : '-';
+    const valorFormatado = new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(tx.valor);
+    const dataFormatada = new Date(tx.data_pagamento).toLocaleString('pt-BR', { weekday:'short', day:'2-digit', month:'short', hour:'2-digit', minute:'2-digit' });
+
     document.getElementById('detail-avatar').className = `detail-brand-lg ${marca.classe}`;
     document.getElementById('detail-avatar').innerText = marca.logo;
-
-    document.getElementById('detail-cartao').innerText = tx.cartao_info || 'Sem cartão vinculado';
-    document.getElementById('detail-tipo').innerText = tx.categoria;
-    document.getElementById('detail-id-tx').innerText = tx.id ? tx.id.split('-')[0].toUpperCase() : '---';
-    document.getElementById('detail-status').innerText = tx.status || 'Confirmado';
-
-    const dataFormatada = new Date(tx.data_pagamento).toLocaleDateString('pt-BR', { weekday: 'short', day: 'numeric', month: 'long', hour: '2-digit', minute: '2-digit' });
-    document.getElementById('detail-data-hora').innerText = dataFormatada;
+    document.getElementById('detail-nome-estabelecimento').innerText = tx.descricao;
     document.getElementById('detail-sub-cat').innerText = `${tx.categoria} (${tx.cadastrado_por})`;
-
-    const dotColor = tx.cadastrado_por.toLowerCase() === 'ana' ? 'dot-ana' : 'dot-marco';
-    document.getElementById('detail-autor').innerHTML = `<span class="user-dot ${dotColor}"></span> ${tx.cadastrado_por}`;
-
-    const pAtual = tx.parcela_atual || 1;
-    const pTotal = tx.parcela_total || 1;
-    document.getElementById('detail-parcelas').innerText = `${pAtual}/${pTotal} ${pTotal > 1 ? `(Restam ${pTotal - pAtual} faturas)` : ''}`;
+    document.getElementById('detail-valor').innerText = `${sinal}${valorFormatado}`;
+    document.getElementById('detail-data-hora').innerText = dataFormatada;
+    document.getElementById('detail-cartao').innerText = tx.cartao_info ? `💳 ${tx.cartao_info}` : '—';
+    document.getElementById('detail-tipo').innerText = tx.categoria;
+    document.getElementById('detail-id-tx').innerText = tx.id;
+    document.getElementById('detail-autor').innerText = tx.cadastrado_por;
+    document.getElementById('detail-parcelas').innerText = `${tx.parcela_atual}/${tx.parcela_total}`;
 }
 
 document.getElementById('btn-back-to-dash').addEventListener('click', () => {
@@ -284,7 +303,7 @@ document.getElementById('btn-back-to-dash').addEventListener('click', () => {
     document.getElementById(`view-${targetView}`).classList.remove('hidden');
 });
 
-// ─── MUTATIONS (INSERÇÃO DE DADOS) ───────────────────────────────────
+// ─── INSERÇÃO DE TRANSAÇÃO ────────────────────────────────────────────────
 
 document.querySelectorAll('.btn-action-trigger').forEach(btn => {
     btn.addEventListener('click', (e) => {
@@ -307,9 +326,11 @@ document.getElementById('btn-cancel-tx-form').addEventListener('click', () => {
     document.getElementById(`view-${targetView}`).classList.remove('hidden');
 });
 
-// Envio do formulário de transação para o Supabase
 document.getElementById('tx-mutation-form').addEventListener('submit', async (e) => {
     e.preventDefault();
+    const btn = e.target.querySelector('button[type="submit"]');
+    btn.disabled = true;
+    btn.innerText = 'Salvando...';
 
     const descricao = document.getElementById('form-tx-desc').value;
     const valor = Number(document.getElementById('form-tx-value').value);
@@ -337,17 +358,18 @@ document.getElementById('tx-mutation-form').addEventListener('submit', async (e)
 
         showToast("Transação lançada!", "success");
         document.getElementById('tx-mutation-form').reset();
-
         document.getElementById('view-add-tx').classList.add('hidden');
-        const targetView = appState.viewAtiva || 'dashboard';
-        document.getElementById(`view-${targetView}`).classList.remove('hidden');
+        document.getElementById(`view-${appState.viewAtiva || 'dashboard'}`).classList.remove('hidden');
         refreshAllViews();
     } catch (err) {
         showToast(err.message, "error");
+    } finally {
+        btn.disabled = false;
+        btn.innerText = 'Salvar Lançamento';
     }
 });
 
-// ─── GESTÃO DE METAS ─────────────────────────────────────────────────
+// ─── METAS ────────────────────────────────────────────────────────────────
 
 document.getElementById('goal-creation-form').addEventListener('submit', async (e) => {
     e.preventDefault();
@@ -373,7 +395,12 @@ document.getElementById('goal-creation-form').addEventListener('submit', async (
 
 async function refreshGoalsWidget() {
     try {
-        const { data: metas, error } = await supabase.from('goals').select('*').eq('couple_id', appState.coupleId).limit(1);
+        const { data: metas, error } = await supabase
+            .from('goals')
+            .select('*')
+            .eq('couple_id', appState.coupleId)
+            .limit(1);
+
         if (error) throw error;
 
         const containerAb = document.getElementById('main-goals-container');
@@ -392,33 +419,33 @@ async function refreshGoalsWidget() {
                         <span>🎯 ${m.nome}</span>
                         <span>R$ ${Number(m.valor_guardado).toFixed(2)} / R$ ${Number(m.valor_total).toFixed(2)}</span>
                     </div>
-                    <div class="goal-progress-bar-bg" style="margin-top:8px; height:8px;"><div class="goal-progress-bar-fill" style="width:${pct}%;"></div></div>
-                </div>
-            `;
+                    <div class="goal-progress-bar-bg" style="margin-top:8px; height:8px;">
+                        <div class="goal-progress-bar-fill" style="width:${pct}%;"></div>
+                    </div>
+                </div>`;
         } else {
             document.getElementById('lbl-widget-goal-name').innerText = 'Nenhuma meta ativa';
             document.getElementById('lbl-widget-goal-percent').innerText = '0% concluída';
             document.getElementById('bar-widget-goal-fill').style.width = '0%';
-            
-            containerAb.innerHTML = `<span class="widget-meta-title" style="text-align:center; display:block; margin-top:10px;">Nenhuma meta cadastrada no momento.</span>`;
+            containerAb.innerHTML = `<span class="widget-meta-title" style="text-align:center; display:block; margin-top:10px;">Nenhuma meta cadastrada.</span>`;
         }
     } catch (err) {
-        console.log("Erro ao carregar widget de metas:", err.message);
+        console.log("Erro widget metas:", err.message);
     }
 }
 
-// ─── COMPONENTES AUXILIARES & NAVEGAÇÃO ──────────────────────────────
+// ─── UTILITÁRIOS ──────────────────────────────────────────────────────────
 
+// CORRIGIDO: toast dura 6s para dar tempo de ler erros
 function showToast(message, type = 'info') {
     const container = document.getElementById('toast-container');
     const t = document.createElement('div');
     t.className = `toast ${type}`;
     t.innerText = message;
     container.appendChild(t);
-    setTimeout(() => { t.remove(); }, 3500);
+    setTimeout(() => { t.remove(); }, 6000);
 }
 
-// Controle de cliques nas abas inferiores (Bottom Nav)
 document.querySelectorAll('.bottom-nav .nav-item').forEach(btn => {
     btn.addEventListener('click', (e) => {
         if (e.currentTarget.id === 'nav-direct-plus-btn') return;
@@ -434,7 +461,6 @@ document.querySelectorAll('.bottom-nav .nav-item').forEach(btn => {
     });
 });
 
-// Navegação de Meses
 document.getElementById('prev-month-btn').addEventListener('click', () => {
     appState.mesAtual.setMonth(appState.mesAtual.getMonth() - 1);
     refreshAllViews();
@@ -444,7 +470,6 @@ document.getElementById('next-month-btn').addEventListener('click', () => {
     refreshAllViews();
 });
 
-// Botão de Logout
 document.getElementById('btn-logout').addEventListener('click', async () => {
     await supabase.auth.signOut();
     appState.user = null;
