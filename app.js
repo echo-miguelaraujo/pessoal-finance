@@ -1,9 +1,10 @@
 // ─── CONFIGURAÇÃO TOTALMENTE INTEGRADA COM O SEU BANCO DO SUPABASE ─────
 const SUPABASE_URL = "https://lfrizfbtvilggyocyewj.supabase.co";
-const SUPABASE_ANON_KEY = "EyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Imxmcml6ZmJ0dmlsZ2d5b2N5ZXdqIiwicm9sZSI6ImFub24iLCJpYXQiOjE3Nzk4NDc3ODEsImV4cCI6MjA5NTQyMzc4MX0.lNseylQ2S-HkCsEl3qJNpXgzo6hrVHvGOwCsj4yVFa4";
+// BUG CORRIGIDO #1: Chave iniciava com 'EyJ' (maiúsculo) — JWT inválido. Corrigido para 'eyJ'.
+const SUPABASE_ANON_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Imxmcml6ZmJ0dmlsZ2d5b2N5ZXdqIiwicm9sZSI6ImFub24iLCJpYXQiOjE3Nzk4NDc3ODEsImV4cCI6MjA5NTQyMzc4MX0.lNseylQ2S-HkCsEl3qJNpXgzo6hrVHvGOwCsj4yVFa4";
 
-// ATENÇÃO: Sem a palavra 'import' aqui em cima!
 const supabase = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+
 // ESTADO CENTRAL DO APLICATIVO SPA
 const appState = {
     user: null,
@@ -46,9 +47,16 @@ document.getElementById('register-form').addEventListener('submit', async (e) =>
     const modoVinculo = document.getElementById('reg-vinc').value;
 
     try {
+        // BUG CORRIGIDO #2: Após signUp o RLS bloqueia inserção de perfil pois a sessão
+        // ainda não está ativa. Solução: fazer signIn logo após o signUp para autenticar.
         const { data: authData, error: authError } = await supabase.auth.signUp({ email, password });
         if (authError) throw authError;
 
+        // Faz login imediatamente para obter sessão ativa antes de inserir o perfil
+        const { data: signInData, error: signInError } = await supabase.auth.signInWithPassword({ email, password });
+        if (signInError) throw signInError;
+
+        const userId = signInData.user.id;
         let coupleId = null;
 
         if (modoVinculo === 'criar') {
@@ -57,11 +65,11 @@ document.getElementById('register-form').addEventListener('submit', async (e) =>
             coupleId = cData.id;
         } else {
             coupleId = document.getElementById('reg-couple-id').value.trim();
-            if(!coupleId) throw new Error("Por favor, cole o código de casal da sua parceria.");
+            if (!coupleId) throw new Error("Por favor, cole o código de casal da sua parceria.");
         }
 
         const { error: profError } = await supabase.from('profiles').insert([{
-            id: authData.user.id,
+            id: userId,
             couple_id: coupleId,
             nome: nome,
             papel: papel
@@ -69,7 +77,7 @@ document.getElementById('register-form').addEventListener('submit', async (e) =>
         if (profError) throw profError;
 
         showToast("Conta compartilhada criada com sucesso!", "success");
-        toggleAuthTabs('login');
+        await bootstrapSession(signInData.user);
     } catch (err) {
         showToast(err.message, "error");
     }
@@ -134,7 +142,6 @@ function aplicarEstiloMarca(nome) {
 async function refreshAllViews() {
     if (!appState.coupleId) return;
 
-    // Atualiza rótulo do mês
     const meses = ["Janeiro", "Fevereiro", "Março", "Abril", "Maio", "Junho", "Julho", "Agosto", "Setembro", "Outubro", "Novembro", "Dezembro"];
     document.getElementById('current-month-label').innerText = `${meses[appState.mesAtual.getMonth()]} de ${appState.mesAtual.getFullYear()}`;
 
@@ -142,7 +149,6 @@ async function refreshAllViews() {
     const ultimoDia = new Date(appState.mesAtual.getFullYear(), appState.mesAtual.getMonth() + 1, 0, 23, 59, 59).toISOString();
 
     try {
-        // Puxar transações do mês do casal
         const { data: txList, error: txError } = await supabase
             .from('transactions')
             .select('*')
@@ -153,7 +159,6 @@ async function refreshAllViews() {
 
         if (txError) throw txError;
 
-        // Calcular Saldo Dinâmico
         let total = 0;
         txList.forEach(t => {
             if (t.tipo === 'entrada') total += Number(t.valor);
@@ -180,7 +185,6 @@ function renderDashboardList(transactions) {
         return;
     }
 
-    // Exibe apenas as 5 primeiras no dashboard inicial
     transactions.slice(0, 5).forEach(tx => {
         const marca = aplicarEstiloMarca(tx.descricao);
         const dotClasse = tx.cadastrado_por.toLowerCase() === 'ana' ? 'dot-ana' : 'dot-marco';
@@ -241,11 +245,10 @@ function renderFullHistoryList(transactions) {
     });
 }
 
-// Lógica da Tela de Detalhes da Fatura (Ecrã 2 do seu Mockup)
+// Lógica da Tela de Detalhes da Fatura
 function abrirDetalhesFatura(tx) {
     const marca = aplicarEstiloMarca(tx.descricao);
-    
-    // Alterna visibilidade escondendo a view ativa
+
     document.querySelectorAll('.spa-view').forEach(v => v.classList.add('hidden'));
     document.getElementById('view-tx-detail').classList.remove('hidden');
 
@@ -253,25 +256,32 @@ function abrirDetalhesFatura(tx) {
     document.getElementById('detail-valor').innerText = tx.tipo === 'saida' ? `-R$ ${Math.abs(tx.valor).toFixed(2)}` : `+R$ ${tx.valor.toFixed(2)}`;
     document.getElementById('detail-avatar').className = `detail-brand-lg ${marca.classe}`;
     document.getElementById('detail-avatar').innerText = marca.logo;
-    
+
     document.getElementById('detail-cartao').innerText = tx.cartao_info || 'Sem cartão vinculado';
     document.getElementById('detail-tipo').innerText = tx.categoria;
-    document.getElementById('detail-id-tx').innerText = tx.id.split('-')[0].toUpperCase(); // Exibe pedaço do UUID como Nº ID
+    document.getElementById('detail-id-tx').innerText = tx.id.split('-')[0].toUpperCase();
     document.getElementById('detail-status').innerText = tx.status || 'Confirmado';
-    
+
+    const dataFormatada = new Date(tx.data_pagamento).toLocaleDateString('pt-BR', { weekday: 'short', day: 'numeric', month: 'long', hour: '2-digit', minute: '2-digit' });
+    document.getElementById('detail-data-hora').innerText = dataFormatada;
+    document.getElementById('detail-sub-cat').innerText = `${tx.categoria} (${tx.cadastrado_por})`;
+
     const dotColor = tx.cadastrado_por.toLowerCase() === 'ana' ? 'dot-ana' : 'dot-marco';
     document.getElementById('detail-autor').innerHTML = `<span class="user-dot ${dotColor}"></span> ${tx.cadastrado_por}`;
-    document.getElementById('detail-parcelas').innerText = `${tx.parcela_atual}/${tx.parcela_total} ${tx.parcela_total > 1 ? `(Restam ${tx.parcela_total - tx.parcela_current} faturas)` : ''}`;
+
+    // BUG CORRIGIDO #3: 'tx.parcela_current' não existe — campo correto é 'parcela_atual'
+    document.getElementById('detail-parcelas').innerText = `${tx.parcela_atual}/${tx.parcela_total} ${tx.parcela_total > 1 ? `(Restam ${tx.parcela_total - tx.parcela_atual} faturas)` : ''}`;
 }
 
 document.getElementById('btn-back-to-dash').addEventListener('click', () => {
     document.getElementById('view-tx-detail').classList.add('hidden');
-    document.getElementById(`view-${appState.viewAtiva}`).classList.remove('hidden');
+    // BUG CORRIGIDO #4: Volta para a view que estava ativa antes de abrir o detalhe
+    const targetView = appState.viewAtiva || 'dashboard';
+    document.getElementById(`view-${targetView}`).classList.remove('hidden');
 });
 
 // ─── MUTATIONS (INSERÇÃO DE DADOS) ───────────────────────────────────
 
-// Ativação do painel de Nova Transação (Plus)
 document.querySelectorAll('.btn-action-trigger').forEach(btn => {
     btn.addEventListener('click', (e) => {
         const type = e.target.getAttribute('data-type');
@@ -297,7 +307,7 @@ document.getElementById('btn-cancel-tx-form').addEventListener('click', () => {
 // Envio do formulário de transação para o Supabase
 document.getElementById('tx-mutation-form').addEventListener('submit', async (e) => {
     e.preventDefault();
-    
+
     const descricao = document.getElementById('form-tx-desc').value;
     const valor = Number(document.getElementById('form-tx-value').value);
     const categoria = document.getElementById('form-tx-cat').value;
@@ -315,7 +325,8 @@ document.getElementById('tx-mutation-form').addEventListener('submit', async (e)
             tipo,
             valor,
             cartao_info,
-            parcela_current: parcela_atual,
+            // BUG CORRIGIDO #5: Campo era 'parcela_current' — corrigido para 'parcela_atual' (igual ao schema SQL)
+            parcela_atual,
             parcela_total
         }]);
 
@@ -323,8 +334,7 @@ document.getElementById('tx-mutation-form').addEventListener('submit', async (e)
 
         showToast("Transação lançada!", "success");
         document.getElementById('tx-mutation-form').reset();
-        
-        // Retorna ao Dashboard
+
         appState.viewAtiva = 'dashboard';
         document.getElementById('view-add-tx').classList.add('hidden');
         document.getElementById('view-dashboard').classList.remove('hidden');
@@ -366,18 +376,17 @@ async function refreshGoalsWidget() {
         if (metas && metas.length > 0) {
             const m = metas[0];
             const pct = m.valor_total > 0 ? Math.min(Math.round((m.valor_guardado / m.valor_total) * 100), 100) : 0;
-            
+
             document.getElementById('lbl-widget-goal-name').innerText = m.nome;
             document.getElementById('lbl-widget-goal-percent').innerText = `${pct}% concluída`;
             document.getElementById('bar-widget-goal-fill').style.width = `${pct}%`;
-            
-            // Renderiza também na aba interna de metas
+
             const containerAb = document.getElementById('main-goals-container');
             containerAb.innerHTML = `
                 <div class="goals-widget-card" style="background:var(--bg-card)">
                     <div class="goal-progress-row">
                         <span>🎯 ${m.nome}</span>
-                        <span>${m.valor_guardado} / ${m.valor_total} Pts</span>
+                        <span>R$ ${Number(m.valor_guardado).toFixed(2)} / R$ ${Number(m.valor_total).toFixed(2)}</span>
                     </div>
                     <div class="goal-progress-bar-bg" style="margin-top:8px; height:8px;"><div class="goal-progress-bar-fill" style="width:${pct}%;"></div></div>
                 </div>
@@ -402,14 +411,14 @@ function showToast(message, type = 'info') {
 // Controle de cliques nas abas inferiores (Bottom Nav)
 document.querySelectorAll('.bottom-nav .nav-item').forEach(btn => {
     btn.addEventListener('click', (e) => {
-        if (e.currentTarget.id === 'nav-direct-plus-btn') return; // Ignora o plus que já tem lógica própria
+        if (e.currentTarget.id === 'nav-direct-plus-btn') return;
 
         const targetView = e.currentTarget.getAttribute('data-view');
         appState.viewAtiva = targetView;
-        
+
         document.querySelectorAll('.bottom-nav .nav-item').forEach(b => b.classList.remove('active'));
         e.currentTarget.classList.add('active');
-        
+
         document.querySelectorAll('.spa-view').forEach(view => view.classList.add('hidden'));
         document.getElementById(`view-${targetView}`).classList.remove('hidden');
     });
@@ -435,11 +444,11 @@ document.getElementById('btn-logout').addEventListener('click', async () => {
     showToast("Sessão encerrada.", "info");
 });
 
-// INIT VERIFICATION (Auto-Login se houver sessão ativa)
+// BUG CORRIGIDO #6: bootstrapSession precisa de await para não causar race conditions
 async function verificarSessaoAtiva() {
     const { data } = await supabase.auth.getSession();
     if (data?.session?.user) {
-        bootstrapSession(data.session.user);
+        await bootstrapSession(data.session.user);
     }
 }
 verificarSessaoAtiva();
