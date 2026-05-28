@@ -1,22 +1,23 @@
 /* ================================================================
-   FINANÇAS DO CASAL — app.js
-   Fase 1: localStorage
+   FINANÇAS DO CASAL — app.js (v3 - Negócios & Registro Rápido)
    ----------------------------------------------------------------
    ESTRUTURA:
    1.  CONFIG & CONSTANTES
-   2.  CAMADA DE DADOS (DataLayer) — isolada para fácil migração
+   2.  CAMADA DE DADOS (DataLayer) — Expandida para Negócios
    3.  ESTADO DA APLICAÇÃO
    4.  INICIALIZAÇÃO
    5.  NAVEGAÇÃO
-   6.  HOME
-   7.  MODAL DE TRANSAÇÃO
-   8.  SALVAR / EDITAR / EXCLUIR TRANSAÇÃO
-   9.  LISTA DE TRANSAÇÕES
+   6.  HOME & SALDOS
+   7.  REGISTRO RÁPIDO & NORMAL (Modais de entrada)
+   8.  TRANSAÇÕES GERAIS (CRUD)
+   9.  LISTA UNIFICADA (Home e Histórico)
    10. MODAL DE DETALHE
-   11. METAS
-   12. RELATÓRIOS
-   13. CONFIGURAÇÕES
-   14. UTILITÁRIOS (formatação, datas, toast)
+   11. METAS E ITENS DE META
+   12. NEGÓCIOS E PRODUTOS (Carteiras)
+   13. TRANSAÇÕES DE NEGÓCIOS
+   14. RELATÓRIOS
+   15. CONFIGURAÇÕES
+   16. UTILITÁRIOS (formatação, datas, toast)
    ================================================================ */
 
 'use strict';
@@ -27,7 +28,7 @@
 
 const CATEGORIAS_PADRAO = [
   'Alimentação', 'Transporte', 'Saúde', 'Moradia',
-  'Assinaturas', 'Educação', 'Lazer', 'Outros'
+  'Assinaturas', 'Educação', 'Lazer', 'Negócio', 'Outros'
 ];
 
 const SUBTIPOS = {
@@ -44,29 +45,22 @@ const SUBTIPOS = {
   ]
 };
 
-// SVG de seta para cima (entrada) e para baixo (saída)
+// SVGs reutilizáveis
 const SVG_ENTRADA = `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><line x1="12" y1="19" x2="12" y2="5"/><polyline points="5 12 12 5 19 12"/></svg>`;
 const SVG_SAIDA   = `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><line x1="12" y1="5" x2="12" y2="19"/><polyline points="19 12 12 19 5 12"/></svg>`;
+const SVG_CHECK   = `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg>`;
 
 /* ================================================================
    2. CAMADA DE DADOS (DataLayer)
-   ----------------------------------------------------------------
-   Toda leitura/escrita passa por aqui.
-   Na Fase 3, substitua apenas estas funções pelo Supabase.
 ================================================================ */
 
 const DataLayer = {
-
-  /* --- Transações --- */
-  getTransacoes() {
-    return JSON.parse(localStorage.getItem('fc_transacoes') || '[]');
-  },
-  setTransacoes(lista) {
-    localStorage.setItem('fc_transacoes', JSON.stringify(lista));
-  },
-  addTransacao(transacao) {
+  /* --- Transações Normais (Gerais) --- */
+  getTransacoes: () => JSON.parse(localStorage.getItem('fc_transacoes') || '[]'),
+  setTransacoes: (lista) => localStorage.setItem('fc_transacoes', JSON.stringify(lista)),
+  addTransacao(t) {
     const lista = this.getTransacoes();
-    lista.unshift(transacao); // mais recente primeiro
+    lista.unshift(t);
     this.setTransacoes(lista);
   },
   updateTransacao(id, dados) {
@@ -79,15 +73,11 @@ const DataLayer = {
   },
 
   /* --- Metas --- */
-  getMetas() {
-    return JSON.parse(localStorage.getItem('fc_metas') || '[]');
-  },
-  setMetas(lista) {
-    localStorage.setItem('fc_metas', JSON.stringify(lista));
-  },
-  addMeta(meta) {
+  getMetas: () => JSON.parse(localStorage.getItem('fc_metas') || '[]'),
+  setMetas: (lista) => localStorage.setItem('fc_metas', JSON.stringify(lista)),
+  addMeta(m) {
     const lista = this.getMetas();
-    lista.push(meta);
+    lista.push(m);
     this.setMetas(lista);
   },
   updateMeta(id, dados) {
@@ -99,23 +89,70 @@ const DataLayer = {
     this.setMetas(lista);
   },
 
-  /* --- Configurações --- */
-  getConfig() {
-    return JSON.parse(localStorage.getItem('fc_config') || JSON.stringify({
-      nomeU1: 'Usuário 1',
-      nomeU2: 'Usuário 2',
-      categoriasCustom: []
-    }));
+  /* --- Negócios (Carteiras) --- */
+  getNegocios: () => JSON.parse(localStorage.getItem('fc_negocios') || '[]'),
+  setNegocios: (lista) => localStorage.setItem('fc_negocios', JSON.stringify(lista)),
+  addNegocio(n) {
+    const lista = this.getNegocios();
+    lista.push(n);
+    this.setNegocios(lista);
   },
-  setConfig(config) {
-    localStorage.setItem('fc_config', JSON.stringify(config));
+  updateNegocio(id, dados) {
+    const lista = this.getNegocios().map(n => n.id === id ? { ...n, ...dados } : n);
+    this.setNegocios(lista);
+  },
+  deleteNegocio(id) {
+    const lista = this.getNegocios().filter(n => n.id !== id);
+    this.setNegocios(lista);
+    // Removemos em cascata produtos e transações associadas
+    this.setProdutos(this.getProdutos().filter(p => p.negocioId !== id));
+    this.setTransCarteiras(this.getTransCarteiras().filter(t => t.negocioId !== id));
   },
 
-  /* --- Limpar tudo --- */
+  /* --- Produtos (de Negócios) --- */
+  getProdutos: () => JSON.parse(localStorage.getItem('fc_produtos') || '[]'),
+  setProdutos: (lista) => localStorage.setItem('fc_produtos', JSON.stringify(lista)),
+  addProduto(p) {
+    const lista = this.getProdutos();
+    lista.push(p);
+    this.setProdutos(lista);
+  },
+  updateProduto(id, dados) {
+    const lista = this.getProdutos().map(p => p.id === id ? { ...p, ...dados } : p);
+    this.setProdutos(lista);
+  },
+  deleteProduto(id) {
+    const lista = this.getProdutos().filter(p => p.id !== id);
+    this.setProdutos(lista);
+  },
+
+  /* --- Transações de Carteira (Negócios) --- */
+  getTransCarteiras: () => JSON.parse(localStorage.getItem('fc_trans_carteiras') || '[]'),
+  setTransCarteiras: (lista) => localStorage.setItem('fc_trans_carteiras', JSON.stringify(lista)),
+  addTransCarteira(t) {
+    const lista = this.getTransCarteiras();
+    lista.unshift(t);
+    this.setTransCarteiras(lista);
+  },
+  updateTransCarteira(id, dados) {
+    const lista = this.getTransCarteiras().map(t => t.id === id ? { ...t, ...dados } : t);
+    this.setTransCarteiras(lista);
+  },
+  deleteTransCarteira(id) {
+    const lista = this.getTransCarteiras().filter(t => t.id !== id);
+    this.setTransCarteiras(lista);
+  },
+
+  /* --- Configurações globais --- */
+  getConfig: () => JSON.parse(localStorage.getItem('fc_config') || JSON.stringify({
+    nomeU1: 'Usuário 1', nomeU2: 'Usuário 2', categoriasCustom: []
+  })),
+  setConfig: (config) => localStorage.setItem('fc_config', JSON.stringify(config)),
+
+  /* --- Limpar Tudo --- */
   limparTudo() {
-    localStorage.removeItem('fc_transacoes');
-    localStorage.removeItem('fc_metas');
-    localStorage.removeItem('fc_config');
+    ['fc_transacoes', 'fc_metas', 'fc_config', 'fc_negocios', 'fc_produtos', 'fc_trans_carteiras']
+      .forEach(k => localStorage.removeItem(k));
   }
 };
 
@@ -125,15 +162,27 @@ const DataLayer = {
 
 const App = {
   telaAtual: 'tela-home',
-  transacaoEditandoId: null,  // null = nova, string = editando
+  
+  // Controle de Edições
+  transacaoEditandoId: null,
   metaEditandoId: null,
   aporteMetaId: null,
-  tipoAtual: 'entrada',       // 'entrada' | 'saida'
-  usuarioAtual: 'usuario1',   // 'usuario1' | 'usuario2'
+  itemMetaAlvoId: null,
+  negocioEditandoId: null,
+  
+  // Controle de Transação Normal
+  tipoAtual: 'entrada',
+  usuarioAtual: 'usuario1',
+  
+  // Controle da Home e Filtros
   filtroHistorico: 'todos',
-  mostrarTodas: false,        // home: mostrar todas ou só 8
+  mostrarTodas: false,
   relatorioMes: new Date().getMonth(),
   relatorioAno: new Date().getFullYear(),
+
+  // Registro Rápido
+  rapidoTipo: 'entrada',
+  rapidoValorUnitario: 0,
 };
 
 /* ================================================================
@@ -142,14 +191,17 @@ const App = {
 
 document.addEventListener('DOMContentLoaded', () => {
   carregarConfiguracoes();
+  
   renderHome();
   renderMetas();
+  renderNegocios();
   renderHistorico();
   renderRelatorio();
 
-  // Define data padrão do formulário como hoje
+  // Define as datas padrão dos formulários como "Hoje"
   const hoje = new Date().toISOString().split('T')[0];
   document.getElementById('campo-data').value = hoje;
+  document.getElementById('trans-cart-data').value = hoje;
 });
 
 /* ================================================================
@@ -157,61 +209,85 @@ document.addEventListener('DOMContentLoaded', () => {
 ================================================================ */
 
 function irPara(telaId) {
-  // Remove classe ativa da tela e botão atual
   document.getElementById(App.telaAtual)?.classList.remove('ativa');
   document.querySelectorAll('.nav-btn').forEach(btn => btn.classList.remove('active'));
 
-  // Ativa nova tela
   App.telaAtual = telaId;
   document.getElementById(telaId)?.classList.add('ativa');
-
-  // Ativa botão da nav correspondente
+  
   const navBtn = document.querySelector(`.nav-btn[data-tela="${telaId}"]`);
   if (navBtn) navBtn.classList.add('active');
 
-  // Atualiza conteúdo dinâmico ao mudar de aba
   if (telaId === 'tela-home')       renderHome();
   if (telaId === 'tela-metas')      renderMetas();
+  if (telaId === 'tela-negocios')   renderNegocios();
   if (telaId === 'tela-registrar')  renderHistorico();
   if (telaId === 'tela-relatorios') renderRelatorio();
   if (telaId === 'tela-config')     renderConfig();
 
-  // Volta ao topo
   window.scrollTo(0, 0);
 }
 
 /* ================================================================
-   6. HOME
+   6. HOME & SALDOS
 ================================================================ */
 
 function renderHome() {
-  const config = DataLayer.getConfig();
-  const transacoes = DataLayer.getTransacoes();
-  const metas = DataLayer.getMetas();
+  const transacoesGerais = DataLayer.getTransacoes();
+  const transacoesCart   = DataLayer.getTransCarteiras();
+  const negocios         = DataLayer.getNegocios();
+  const metas            = DataLayer.getMetas();
 
-  // Nomes
-  document.getElementById('home-nome-u1').textContent = config.nomeU1 || 'Usuário 1';
-  document.getElementById('home-nome-u2').textContent = config.nomeU2 || 'Usuário 2';
+  // 1. Calcula Saldo Geral (só transações do app principal)
+  let saldoGeral = transacoesGerais.reduce((acc, t) => acc + (t.tipo === 'entrada' ? t.valor : -t.valor), 0);
+  let saldoTotal = saldoGeral; // Começa pelo saldo da conta principal
 
-  // Saldos
-  const { totalGeral, saldoU1, saldoU2 } = calcularSaldos(transacoes);
-  document.getElementById('saldo-total').textContent = formatarReais(totalGeral);
-  document.getElementById('home-saldo-u1').textContent = formatarReais(saldoU1);
-  document.getElementById('home-saldo-u2').textContent = formatarReais(saldoU2);
+  // 2. Monta blocos de saldos individuais (Geral + Cada Negócio)
+  let htmlSaldos = `
+    <div class="saldo-pessoa">
+      <span class="pessoa-dot" style="background:var(--text-secondary)"></span>
+      <span class="pessoa-nome">Conta Pessoal</span>
+      <span class="pessoa-valor ${saldoGeral >= 0 ? 'verde' : 'vermelho'}">${formatarReais(saldoGeral)}</span>
+    </div>
+  `;
 
-  // Cor do saldo total
-  const elTotal = document.getElementById('saldo-total');
-  elTotal.style.color = totalGeral < 0 ? 'var(--vermelho)' : 'var(--text-primary)';
+  negocios.forEach((neg, i) => {
+    // Calcula saldo deste negócio específico
+    const tcDoNegocio = transacoesCart.filter(tc => tc.negocioId === neg.id);
+    let saldoNeg = tcDoNegocio.reduce((acc, tc) => acc + (tc.tipo === 'entrada' ? tc.valor : -tc.valor), 0);
+    
+    // Soma ao Saldo Total se tiver a opção de compensar marcada
+    if (neg.compensarSaldo) {
+      saldoTotal += saldoNeg;
+    }
 
-  // Resumo do mês atual
+    const colorClass = `dot-n${i % 6}`;
+    htmlSaldos += `
+      <div class="saldo-pessoa">
+        <span class="pessoa-dot ${colorClass}"></span>
+        <span class="pessoa-nome">${escapeHtml(neg.nome)}</span>
+        <span class="pessoa-valor ${saldoNeg >= 0 ? 'verde' : 'vermelho'}">${formatarReais(saldoNeg)}</span>
+      </div>`;
+  });
+
+  // Atualiza DOM
+  document.getElementById('saldo-total').textContent = formatarReais(saldoTotal);
+  document.getElementById('saldo-total').style.color = saldoTotal < 0 ? 'var(--vermelho)' : 'var(--text-primary)';
+  
+  const saldosWrap = document.getElementById('saldo-negocios-wrap');
+  saldosWrap.innerHTML = htmlSaldos;
+  if (negocios.length >= 3) saldosWrap.classList.add('multi-col');
+  else saldosWrap.classList.remove('multi-col');
+
+  // Resumo do Mês (soma tudo para ter a visão geral)
   const agora = new Date();
-  const { entradas, saidas } = calcularResumoMes(transacoes, agora.getMonth(), agora.getFullYear());
-  document.getElementById('resumo-entradas').textContent = formatarReais(entradas);
-  document.getElementById('resumo-saidas').textContent   = formatarReais(saidas);
+  const resumoMes = calcularResumoMes(getTodasTransacoesUnificadas(), agora.getMonth(), agora.getFullYear());
+  document.getElementById('resumo-entradas').textContent = formatarReais(resumoMes.entradas);
+  document.getElementById('resumo-saidas').textContent   = formatarReais(resumoMes.saidas);
 
-  // Metas mini na home
+  // Metas Mini na Home
   const secaoMetas = document.getElementById('home-metas-section');
-  const listaMetas  = document.getElementById('home-metas-lista');
+  const listaMetas = document.getElementById('home-metas-lista');
   if (metas.length > 0) {
     secaoMetas.classList.remove('hidden');
     listaMetas.innerHTML = metas.slice(0, 2).map(renderMetaMini).join('');
@@ -219,10 +295,10 @@ function renderHome() {
     secaoMetas.classList.add('hidden');
   }
 
-  // Transações recentes
-  renderListaTransacoes(transacoes, 'lista-transacoes', App.mostrarTodas ? 9999 : 8);
-  document.getElementById('btn-ver-todas').textContent =
-    App.mostrarTodas ? 'Ver menos' : 'Ver todas';
+  // Lista Unificada de Transações (Gerais + Negócios)
+  const todasTransacoes = getTodasTransacoesUnificadas();
+  renderListaTransacoes(todasTransacoes, 'lista-transacoes', App.mostrarTodas ? 9999 : 8);
+  document.getElementById('btn-ver-todas').textContent = App.mostrarTodas ? 'Ver menos' : 'Ver todas';
 }
 
 function toggleVerTodas() {
@@ -230,19 +306,9 @@ function toggleVerTodas() {
   renderHome();
 }
 
-function calcularSaldos(transacoes) {
-  let saldoU1 = 0, saldoU2 = 0;
-  transacoes.forEach(t => {
-    const val = t.tipo === 'entrada' ? t.valor : -t.valor;
-    if (t.usuario === 'usuario1') saldoU1 += val;
-    else saldoU2 += val;
-  });
-  return { totalGeral: saldoU1 + saldoU2, saldoU1, saldoU2 };
-}
-
-function calcularResumoMes(transacoes, mes, ano) {
+function calcularResumoMes(lista, mes, ano) {
   let entradas = 0, saidas = 0;
-  transacoes.forEach(t => {
+  lista.forEach(t => {
     const d = new Date(t.data + 'T12:00:00');
     if (d.getMonth() === mes && d.getFullYear() === ano) {
       if (t.tipo === 'entrada') entradas += t.valor;
@@ -253,7 +319,159 @@ function calcularResumoMes(transacoes, mes, ano) {
 }
 
 /* ================================================================
-   7. MODAL DE TRANSAÇÃO (abrir / campos dinâmicos)
+   7. REGISTRO RÁPIDO & NORMAL
+================================================================ */
+
+function abrirEscolhaRegistro(tipo) {
+  App.rapidoTipo = tipo;
+  // Resetamos o dialog para o passo 1
+  document.getElementById('rapido-step-1').classList.remove('hidden');
+  document.getElementById('rapido-step-2').classList.add('hidden');
+  mostrarModal('modal-rapido');
+}
+
+function mostrarRapidoStep1() {
+  document.getElementById('rapido-step-1').classList.remove('hidden');
+  document.getElementById('rapido-step-2').classList.add('hidden');
+}
+
+function escolherRegistro(modo) {
+  if (modo === 'normal') {
+    closeAllModals();
+    abrirModalTransacao(App.rapidoTipo);
+  } else if (modo === 'rapido') {
+    iniciarRegistroRapido();
+  }
+}
+
+// Inicia formulário expresso
+function iniciarRegistroRapido() {
+  document.getElementById('rapido-step-1').classList.add('hidden');
+  document.getElementById('rapido-step-2').classList.remove('hidden');
+  
+  selectRapidoTipo(App.rapidoTipo);
+  
+  // Limpar e preencher Destino
+  const selDestino = document.getElementById('rapido-destino');
+  const negocios = DataLayer.getNegocios();
+  selDestino.innerHTML = `<option value="geral">Conta Pessoal (Geral)</option>` + 
+    negocios.map(n => `<option value="${n.id}">${n.nome}</option>`).join('');
+  
+  // Preencher Categorias
+  const config = DataLayer.getConfig();
+  const todasCat = [...CATEGORIAS_PADRAO, ...(config.categoriasCustom || [])];
+  document.getElementById('rapido-categoria').innerHTML = 
+    todasCat.map(c => `<option value="${c}">${c}</option>`).join('');
+  
+  // Limpar campos
+  document.getElementById('rapido-valor').value = '';
+  document.getElementById('rapido-obs').value = '';
+  document.getElementById('rapido-qtd').value = '1';
+  document.getElementById('rapido-produto-id').value = '';
+  document.getElementById('rapido-produto-nome').value = '';
+  App.rapidoValorUnitario = 0;
+
+  onRapidoDestinoChange();
+}
+
+function selectRapidoTipo(tipo) {
+  App.rapidoTipo = tipo;
+  document.querySelectorAll('#rapido-tipo-toggle .toggle-btn').forEach(btn => {
+    btn.classList.toggle('active', btn.dataset.value === tipo);
+  });
+}
+
+function onRapidoDestinoChange() {
+  const destinoId = document.getElementById('rapido-destino').value;
+  const wrapProdutos = document.getElementById('rapido-produtos-wrap');
+  
+  if (destinoId === 'geral') {
+    // Se for geral, escondemos a seleção de produtos da carteira
+    wrapProdutos.classList.add('hidden');
+    App.rapidoValorUnitario = 0;
+  } else {
+    // Se selecionou uma carteira, buscamos e listamos os produtos dela
+    const produtos = DataLayer.getProdutos().filter(p => p.negocioId === destinoId);
+    if (produtos.length > 0) {
+      wrapProdutos.classList.remove('hidden');
+      const container = document.getElementById('rapido-lista-produtos');
+      container.innerHTML = produtos.map(p => `
+        <div class="rapido-produto-opcao" id="rapido-prod-${p.id}" onclick="selecionarRapidoProduto('${p.id}', '${escapeHtml(p.nome)}', ${p.valor})">
+          <span class="rapido-prod-nome">${escapeHtml(p.nome)}</span>
+          <span class="rapido-prod-val">${formatarReais(p.valor)}</span>
+        </div>
+      `).join('');
+    } else {
+      wrapProdutos.classList.add('hidden'); // Carteira sem produtos
+    }
+  }
+}
+
+function selecionarRapidoProduto(id, nome, valor) {
+  document.querySelectorAll('.rapido-produto-opcao').forEach(el => el.classList.remove('selecionado'));
+  document.getElementById(`rapido-prod-${id}`).classList.add('selecionado');
+  
+  document.getElementById('rapido-produto-id').value = id;
+  document.getElementById('rapido-produto-nome').value = nome;
+  
+  App.rapidoValorUnitario = valor;
+  atualizarValorRapido();
+}
+
+function atualizarValorRapido() {
+  if (App.rapidoValorUnitario > 0) {
+    const qtd = parseInt(document.getElementById('rapido-qtd').value) || 1;
+    document.getElementById('rapido-valor').value = formatarValorInput(App.rapidoValorUnitario * qtd);
+  }
+}
+
+function salvarRegistroRapido() {
+  const destinoId = document.getElementById('rapido-destino').value;
+  const valor = parsearValor(document.getElementById('rapido-valor').value);
+  const categoria = document.getElementById('rapido-categoria').value;
+  const obs = document.getElementById('rapido-obs').value.trim();
+  const hoje = new Date().toISOString().split('T')[0];
+
+  if (!valor || valor <= 0) { showToast('Informe um valor válido.'); return; }
+
+  if (destinoId === 'geral') {
+    // Registra na Conta Pessoal
+    DataLayer.addTransacao({
+      id: gerarId(),
+      tipo: App.rapidoTipo,
+      subtipo: 'avulso',
+      descricao: obs || 'Registro Rápido',
+      valor, categoria, usuario: 'usuario1',
+      data: hoje, parcelas: 1, fixo: false, obs,
+      criadoEm: new Date().toISOString()
+    });
+  } else {
+    // Registra no Negócio/Carteira selecionada
+    const produtoId = document.getElementById('rapido-produto-id').value;
+    const produtoNome = document.getElementById('rapido-produto-nome').value;
+    const qtd = parseInt(document.getElementById('rapido-qtd').value) || 1;
+    
+    DataLayer.addTransCarteira({
+      id: gerarId(),
+      negocioId: destinoId,
+      tipo: App.rapidoTipo,
+      produtoId: produtoId || null,
+      qtd: produtoId ? qtd : 1,
+      descricao: produtoNome ? `${qtd}x ${produtoNome}` : (obs || 'Transação de Carteira'),
+      valor, categoria, data: hoje, futura: false, obs,
+      criadoEm: new Date().toISOString()
+    });
+  }
+
+  showToast('Registro rápido guardado com sucesso!');
+  closeAllModals();
+  renderHome();
+  renderHistorico();
+  if (destinoId !== 'geral') renderNegocios();
+}
+
+/* ================================================================
+   8. TRANSAÇÕES GERAIS (Modais completos e CRUD)
 ================================================================ */
 
 function abrirModalTransacao(tipo, transacaoId = null) {
@@ -261,23 +479,21 @@ function abrirModalTransacao(tipo, transacaoId = null) {
   App.tipoAtual = tipo;
 
   const titulo = document.getElementById('modal-transacao-titulo');
+  preencherCategorias('campo-categoria');
 
   if (transacaoId) {
-    // Modo edição: carrega dados existentes
-    titulo.textContent = 'Editar Transação';
     const t = DataLayer.getTransacoes().find(x => x.id === transacaoId);
     if (!t) return;
+    titulo.textContent = 'Editar Transação';
     App.tipoAtual = t.tipo;
-    preencherFormulario(t);
+    preencherFormularioTransacao(t);
   } else {
-    // Modo criação
     titulo.textContent = tipo === 'entrada' ? 'Nova Entrada' : 'Nova Saída';
-    limparFormulario();
+    limparFormularioTransacao();
     selectTipo(tipo);
   }
 
   atualizarSubtipos();
-  preencherCategorias();
   mostrarModal('modal-transacao');
 }
 
@@ -302,11 +518,10 @@ function atualizarSubtipos() {
   sel.innerHTML = opcoes.map(o => `<option value="${o.value}">${o.label}</option>`).join('');
 }
 
-function preencherCategorias() {
+function preencherCategorias(selectId) {
   const config = DataLayer.getConfig();
   const todas = [...CATEGORIAS_PADRAO, ...(config.categoriasCustom || [])];
-  const sel = document.getElementById('campo-categoria');
-  sel.innerHTML = todas.map(c => `<option value="${c}">${c}</option>`).join('');
+  document.getElementById(selectId).innerHTML = todas.map(c => `<option value="${c}">${c}</option>`).join('');
 }
 
 function toggleFixo() {
@@ -314,7 +529,7 @@ function toggleFixo() {
   document.getElementById('grupo-vencimento').classList.toggle('hidden', !checked);
 }
 
-function limparFormulario() {
+function limparFormularioTransacao() {
   document.getElementById('campo-descricao').value = '';
   document.getElementById('campo-valor').value = '';
   document.getElementById('campo-obs').value = '';
@@ -322,28 +537,20 @@ function limparFormulario() {
   document.getElementById('campo-fixo').checked = false;
   document.getElementById('campo-vencimento').value = '';
   document.getElementById('grupo-vencimento').classList.add('hidden');
-
-  // Data = hoje
   document.getElementById('campo-data').value = new Date().toISOString().split('T')[0];
-
-  // Usuário padrão = usuario1
   selectUsuario('usuario1');
 }
 
-function preencherFormulario(t) {
-  preencherCategorias();
-  atualizarSubtipos();
-
+function preencherFormularioTransacao(t) {
   selectTipo(t.tipo);
   selectUsuario(t.usuario);
-
-  document.getElementById('campo-subtipo').value    = t.subtipo   || 'avulso';
-  document.getElementById('campo-descricao').value  = t.descricao || '';
-  document.getElementById('campo-valor').value      = formatarValorInput(t.valor);
-  document.getElementById('campo-categoria').value  = t.categoria || 'Outros';
-  document.getElementById('campo-data').value       = t.data      || '';
-  document.getElementById('campo-parcelas').value   = t.parcelas  || '1';
-  document.getElementById('campo-obs').value        = t.obs       || '';
+  document.getElementById('campo-subtipo').value   = t.subtipo || 'avulso';
+  document.getElementById('campo-descricao').value = t.descricao || '';
+  document.getElementById('campo-valor').value     = formatarValorInput(t.valor);
+  document.getElementById('campo-categoria').value = t.categoria || 'Outros';
+  document.getElementById('campo-data').value      = t.data || '';
+  document.getElementById('campo-parcelas').value  = t.parcelas || '1';
+  document.getElementById('campo-obs').value       = t.obs || '';
 
   const fixo = !!t.fixo;
   document.getElementById('campo-fixo').checked = fixo;
@@ -351,52 +558,37 @@ function preencherFormulario(t) {
   if (fixo) document.getElementById('campo-vencimento').value = t.diaVencimento || '';
 }
 
-/* ================================================================
-   8. SALVAR / EDITAR / EXCLUIR TRANSAÇÃO
-================================================================ */
-
 function salvarTransacao() {
-  // Coleta dados do formulário
-  const descricao  = document.getElementById('campo-descricao').value.trim();
-  const valorRaw   = document.getElementById('campo-valor').value;
-  const categoria  = document.getElementById('campo-categoria').value;
-  const data       = document.getElementById('campo-data').value;
-  const subtipo    = document.getElementById('campo-subtipo').value;
-  const parcelas   = parseInt(document.getElementById('campo-parcelas').value) || 1;
-  const obs        = document.getElementById('campo-obs').value.trim();
-  const fixo       = document.getElementById('campo-fixo').checked;
-  const diaVenc    = document.getElementById('campo-vencimento').value;
+  const descricao = document.getElementById('campo-descricao').value.trim();
+  const valor = parsearValor(document.getElementById('campo-valor').value);
+  const data = document.getElementById('campo-data').value;
+  const fixo = document.getElementById('campo-fixo').checked;
 
-  // Validações
   if (!descricao) { showToast('Informe uma descrição.'); return; }
-  const valor = parsearValor(valorRaw);
   if (!valor || valor <= 0) { showToast('Informe um valor válido.'); return; }
   if (!data) { showToast('Informe a data.'); return; }
 
-  const transacao = {
-    id:          App.transacaoEditandoId || gerarId(),
-    tipo:        App.tipoAtual,
-    subtipo,
-    descricao,
-    valor,
-    categoria,
-    usuario:     App.usuarioAtual,
+  const t = {
+    id: App.transacaoEditandoId || gerarId(),
+    tipo: App.tipoAtual,
+    subtipo: document.getElementById('campo-subtipo').value,
+    descricao, valor,
+    categoria: document.getElementById('campo-categoria').value,
+    usuario: App.usuarioAtual,
     data,
-    parcelas,
+    parcelas: parseInt(document.getElementById('campo-parcelas').value) || 1,
     fixo,
-    diaVencimento: fixo ? diaVenc : null,
-    obs,
-    criadoEm:   App.transacaoEditandoId
-                  ? DataLayer.getTransacoes().find(t => t.id === App.transacaoEditandoId)?.criadoEm
-                  : new Date().toISOString(),
+    diaVencimento: fixo ? document.getElementById('campo-vencimento').value : null,
+    obs: document.getElementById('campo-obs').value.trim(),
+    criadoEm: App.transacaoEditandoId ? DataLayer.getTransacoes().find(x => x.id === App.transacaoEditandoId)?.criadoEm : new Date().toISOString(),
   };
 
   if (App.transacaoEditandoId) {
-    DataLayer.updateTransacao(App.transacaoEditandoId, transacao);
+    DataLayer.updateTransacao(t.id, t);
     showToast('Transação atualizada.');
   } else {
-    DataLayer.addTransacao(transacao);
-    showToast(transacao.tipo === 'entrada' ? 'Entrada registrada.' : 'Saída registrada.');
+    DataLayer.addTransacao(t);
+    showToast('Transação registrada.');
   }
 
   closeAllModals();
@@ -405,7 +597,7 @@ function salvarTransacao() {
 }
 
 function excluirTransacao(id) {
-  if (!confirm('Excluir esta transação?')) return;
+  if (!confirm('Excluir esta transação geral?')) return;
   DataLayer.deleteTransacao(id);
   closeAllModals();
   showToast('Transação excluída.');
@@ -414,14 +606,34 @@ function excluirTransacao(id) {
 }
 
 /* ================================================================
-   9. LISTA DE TRANSAÇÕES (Home e Histórico)
+   9. LISTA UNIFICADA (Mistura Gerais + Carteiras)
 ================================================================ */
 
-function renderListaTransacoes(transacoes, containerId, limite = 9999, filtroTipo = 'todos') {
+function getTodasTransacoesUnificadas() {
+  // Transações Normais (marcam isCarteira = false)
+  const normais = DataLayer.getTransacoes().map(t => ({ ...t, isCarteira: false }));
+  
+  // Transações de Negócios (marcam isCarteira = true e herdam nome do negócio)
+  const negocios = DataLayer.getNegocios();
+  const carteiras = DataLayer.getTransCarteiras().map(t => {
+    const neg = negocios.find(n => n.id === t.negocioId);
+    return {
+      ...t,
+      isCarteira: true,
+      nomeNegocio: neg ? neg.nome : 'Carteira Removida',
+      usuario: 'negocio' // Para não quebrar layout original
+    };
+  });
+
+  // Une ambas e ordena por data decrescente (mais recentes primeiro)
+  return [...normais, ...carteiras].sort((a, b) => new Date(b.data) - new Date(a.data));
+}
+
+function renderListaTransacoes(listaOriginal, containerId, limite = 9999, filtroTipo = 'todos') {
   const container = document.getElementById(containerId);
   if (!container) return;
 
-  let lista = [...transacoes];
+  let lista = [...listaOriginal];
   if (filtroTipo !== 'todos') lista = lista.filter(t => t.tipo === filtroTipo);
   lista = lista.slice(0, limite);
 
@@ -430,7 +642,6 @@ function renderListaTransacoes(transacoes, containerId, limite = 9999, filtroTip
     return;
   }
 
-  // Agrupa por data
   const grupos = agruparPorData(lista);
   const config = DataLayer.getConfig();
 
@@ -441,48 +652,48 @@ function renderListaTransacoes(transacoes, containerId, limite = 9999, filtroTip
       html += renderTransacaoItem(t, config);
     });
   });
-
   container.innerHTML = html;
 }
 
 function renderTransacaoItem(t, config) {
-  const nomeUsuario = t.usuario === 'usuario1'
-    ? (config.nomeU1 || 'Usuário 1')
-    : (config.nomeU2 || 'Usuário 2');
+  let nomeSubInfo = '';
+  let tagCarteira = '';
 
-  const svgIcone   = t.tipo === 'entrada' ? SVG_ENTRADA : SVG_SAIDA;
+  if (t.isCarteira) {
+    tagCarteira = `<span class="tag-carteira">${escapeHtml(t.nomeNegocio)}</span>`;
+    nomeSubInfo = t.categoria; 
+  } else {
+    const nomeUsuario = t.usuario === 'usuario1' ? (config.nomeU1 || 'Usuário 1') : (config.nomeU2 || 'Usuário 2');
+    nomeSubInfo = `${escapeHtml(t.categoria)} · ${escapeHtml(nomeUsuario)}`;
+  }
+
+  const svgIcone = t.tipo === 'entrada' ? SVG_ENTRADA : SVG_SAIDA;
   const classeIcone = t.tipo === 'entrada' ? 'icone-entrada' : 'icone-saida';
   const classeValor = t.tipo === 'entrada' ? 'valor-entrada' : 'valor-saida';
-  const prefixo     = t.tipo === 'entrada' ? '+' : '-';
+  const prefixo = t.tipo === 'entrada' ? '+' : '-';
 
-  const tagParcela = t.parcelas > 1
-    ? `<span class="tag-parcela">${t.parcelas}x</span>` : '';
-  const tagFixo = t.fixo
-    ? `<span class="tag-fixo">fixo</span>` : '';
+  const tagParcela = t.parcelas > 1 ? `<span class="tag-parcela">${t.parcelas}x</span>` : '';
+  const tagFixo = t.fixo ? `<span class="tag-fixo">fixo</span>` : '';
 
   return `
     <div class="transacao-item" onclick="abrirDetalhe('${t.id}')">
       <div class="transacao-icone ${classeIcone}">${svgIcone}</div>
       <div class="transacao-info">
         <div class="transacao-desc">
-          ${escapeHtml(t.descricao)}${tagParcela}${tagFixo}
+          ${escapeHtml(t.descricao)} ${tagParcela} ${tagFixo} ${tagCarteira}
         </div>
-        <div class="transacao-meta">
-          ${escapeHtml(t.categoria)} · ${escapeHtml(nomeUsuario)}
-        </div>
+        <div class="transacao-meta">${nomeSubInfo}</div>
       </div>
       <div class="transacao-valor-wrap">
-        <div class="transacao-valor ${classeValor}">
-          ${prefixo}${formatarReais(t.valor)}
-        </div>
+        <div class="transacao-valor ${classeValor}">${prefixo}${formatarReais(t.valor)}</div>
         <div class="transacao-data">${formatarDataCurta(t.data)}</div>
       </div>
     </div>`;
 }
 
 function renderHistorico() {
-  const transacoes = DataLayer.getTransacoes();
-  renderListaTransacoes(transacoes, 'lista-historico', 9999, App.filtroHistorico);
+  const unificadas = getTodasTransacoesUnificadas();
+  renderListaTransacoes(unificadas, 'lista-historico', 9999, App.filtroHistorico);
 }
 
 function filtrarTransacoes(tipo, btnEl) {
@@ -492,9 +703,9 @@ function filtrarTransacoes(tipo, btnEl) {
   renderHistorico();
 }
 
-function agruparPorData(transacoes) {
+function agruparPorData(lista) {
   const mapa = {};
-  transacoes.forEach(t => {
+  lista.forEach(t => {
     const label = labelData(t.data);
     if (!mapa[label]) mapa[label] = { label, items: [] };
     mapa[label].items.push(t);
@@ -507,33 +718,50 @@ function agruparPorData(transacoes) {
 ================================================================ */
 
 function abrirDetalhe(id) {
-  const t = DataLayer.getTransacoes().find(x => x.id === id);
+  // O ID pode ser de uma transação normal ou de uma carteira
+  let t = DataLayer.getTransacoes().find(x => x.id === id);
+  let isCarteira = false;
+  
+  if (!t) {
+    t = DataLayer.getTransCarteiras().find(x => x.id === id);
+    isCarteira = true;
+  }
   if (!t) return;
 
-  const config = DataLayer.getConfig();
-  const nomeUsuario = t.usuario === 'usuario1'
-    ? (config.nomeU1 || 'Usuário 1')
-    : (config.nomeU2 || 'Usuário 2');
-
-  const prefixo   = t.tipo === 'entrada' ? '+' : '-';
+  const prefixo = t.tipo === 'entrada' ? '+' : '-';
   const classeVal = t.tipo === 'entrada' ? 'valor-entrada' : 'valor-saida';
 
+  let responsavel = '';
+  if (isCarteira) {
+    const neg = DataLayer.getNegocios().find(n => n.id === t.negocioId);
+    responsavel = `Carteira: ${neg ? neg.nome : 'Desconhecida'}`;
+  } else {
+    const config = DataLayer.getConfig();
+    responsavel = t.usuario === 'usuario1' ? (config.nomeU1 || 'U1') : (config.nomeU2 || 'U2');
+  }
+
   const linhas = [
-    { label: 'Tipo',       val: t.tipo === 'entrada' ? '↑ Entrada' : '↓ Saída' },
-    { label: 'Subtipo',    val: labelSubtipo(t.subtipo) },
-    { label: 'Categoria',  val: t.categoria },
-    { label: 'Registrado por', val: nomeUsuario },
-    { label: 'Data',       val: formatarDataLonga(t.data) },
-    { label: 'Parcelas',   val: t.parcelas > 1 ? `${t.parcelas}x` : 'À vista' },
-    { label: 'Fixo',       val: t.fixo ? `Sim (dia ${t.diaVencimento || '—'})` : 'Não' },
-    t.obs ? { label: 'Obs.', val: t.obs } : null,
+    { label: 'Origem', val: responsavel },
+    { label: 'Tipo', val: t.tipo === 'entrada' ? '↑ Entrada' : '↓ Saída' },
+    { label: 'Categoria', val: t.categoria },
+    { label: 'Data', val: formatarDataLonga(t.data) },
+    t.parcelas ? { label: 'Parcelas', val: t.parcelas > 1 ? `${t.parcelas}x` : 'À vista' } : null,
+    t.qtd ? { label: 'Quantidade', val: t.qtd } : null,
+    t.obs ? { label: 'Observação', val: t.obs } : null,
   ].filter(Boolean);
 
-  const svgDetalhe = t.tipo === 'entrada' ? SVG_ENTRADA : SVG_SAIDA;
+  const onclickEdit = isCarteira 
+    ? `abrirModalTransCarteira('${t.negocioId}', '${t.id}')` 
+    : `abrirModalTransacao('${t.tipo}', '${t.id}')`;
+  
+  const onclickDelete = isCarteira
+    ? `excluirTransCarteira('${t.id}')`
+    : `excluirTransacao('${t.id}')`;
+
   const html = `
-    <div class="transacao-icone ${t.tipo === 'entrada' ? 'icone-entrada' : 'icone-saida'}"
+    <div class="transacao-icone ${classeVal === 'valor-entrada' ? 'icone-entrada' : 'icone-saida'}"
          style="width:48px;height:48px;border-radius:50%;margin-bottom:8px">
-      ${svgDetalhe}
+      ${t.tipo === 'entrada' ? SVG_ENTRADA : SVG_SAIDA}
     </div>
     <div class="detalhe-valor ${classeVal}">${prefixo}${formatarReais(t.valor)}</div>
     <div style="font-size:1rem;font-weight:600;margin-bottom:4px">${escapeHtml(t.descricao)}</div>
@@ -548,14 +776,8 @@ function abrirDetalhe(id) {
     </div>
 
     <div class="detalhe-acoes">
-      <button class="detalhe-btn btn-editar"
-        onclick="closeAllModals(); abrirModalTransacao('${t.tipo}', '${t.id}')">
-        Editar
-      </button>
-      <button class="detalhe-btn btn-excluir"
-        onclick="excluirTransacao('${t.id}')">
-        Excluir
-      </button>
+      <button class="detalhe-btn btn-editar" onclick="closeAllModals(); ${onclickEdit}">Editar</button>
+      <button class="detalhe-btn btn-excluir" onclick="${onclickDelete}">Excluir</button>
     </div>`;
 
   document.getElementById('modal-detalhe-conteudo').innerHTML = html;
@@ -563,103 +785,8 @@ function abrirDetalhe(id) {
 }
 
 /* ================================================================
-   11. METAS
+   11. METAS E ITENS DE META
 ================================================================ */
-
-function abrirModalMeta(metaId = null) {
-  App.metaEditandoId = metaId;
-  document.getElementById('modal-meta-titulo').textContent =
-    metaId ? 'Editar Meta' : 'Nova Meta';
-
-  if (metaId) {
-    const m = DataLayer.getMetas().find(x => x.id === metaId);
-    if (!m) return;
-    document.getElementById('meta-nome').value     = m.nome;
-    document.getElementById('meta-total').value    = formatarValorInput(m.total);
-    document.getElementById('meta-guardado').value = formatarValorInput(m.guardado);
-    document.getElementById('meta-prazo').value    = m.prazo || '';
-  } else {
-    document.getElementById('meta-nome').value     = '';
-    document.getElementById('meta-total').value    = '';
-    document.getElementById('meta-guardado').value = '';
-    document.getElementById('meta-prazo').value    = '';
-  }
-
-  mostrarModal('modal-meta');
-}
-
-function salvarMeta() {
-  const nome     = document.getElementById('meta-nome').value.trim();
-  const total    = parsearValor(document.getElementById('meta-total').value);
-  const guardado = parsearValor(document.getElementById('meta-guardado').value) || 0;
-  const prazo    = document.getElementById('meta-prazo').value;
-
-  if (!nome)           { showToast('Informe o nome da meta.'); return; }
-  if (!total || total <= 0) { showToast('Informe o valor total.'); return; }
-
-  const meta = {
-    id:       App.metaEditandoId || gerarId(),
-    nome,
-    total,
-    guardado,
-    prazo,
-    aportes:  App.metaEditandoId
-                ? DataLayer.getMetas().find(m => m.id === App.metaEditandoId)?.aportes || []
-                : [],
-    criadoEm: new Date().toISOString(),
-  };
-
-  if (App.metaEditandoId) {
-    DataLayer.updateMeta(App.metaEditandoId, meta);
-    showToast('Meta atualizada.');
-  } else {
-    DataLayer.addMeta(meta);
-    showToast('Meta criada.');
-  }
-
-  closeAllModals();
-  renderMetas();
-  renderHome();
-}
-
-function excluirMeta(id) {
-  if (!confirm('Excluir esta meta?')) return;
-  DataLayer.deleteMeta(id);
-  showToast('Meta excluída.');
-  renderMetas();
-  renderHome();
-}
-
-function abrirModalAporte(metaId) {
-  App.aporteMetaId = metaId;
-  const m = DataLayer.getMetas().find(x => x.id === metaId);
-  if (!m) return;
-  document.getElementById('aporte-meta-nome').textContent = m.nome;
-  document.getElementById('aporte-valor').value = '';
-  mostrarModal('modal-aporte');
-}
-
-function salvarAporte() {
-  const valor = parsearValor(document.getElementById('aporte-valor').value);
-  if (!valor || valor <= 0) { showToast('Informe um valor válido.'); return; }
-
-  const metas = DataLayer.getMetas();
-  const meta  = metas.find(m => m.id === App.aporteMetaId);
-  if (!meta) return;
-
-  const novoGuardado = meta.guardado + valor;
-  const aporte = { valor, data: new Date().toISOString() };
-
-  DataLayer.updateMeta(App.aporteMetaId, {
-    guardado: novoGuardado,
-    aportes: [...(meta.aportes || []), aporte]
-  });
-
-  showToast(`Aporte de ${formatarReais(valor)} adicionado.`);
-  closeAllModals();
-  renderMetas();
-  renderHome();
-}
 
 function renderMetas() {
   const metas = DataLayer.getMetas();
@@ -667,21 +794,43 @@ function renderMetas() {
   if (!container) return;
 
   if (metas.length === 0) {
-    container.innerHTML = `
-      <div class="empty-state">
-        <p>Nenhuma meta cadastrada.</p>
-        <p>Crie uma meta para começar a poupar.</p>
-      </div>`;
+    container.innerHTML = `<div class="empty-state"><p>Nenhuma meta cadastrada.</p></div>`;
     return;
   }
-
   container.innerHTML = metas.map(renderMetaCard).join('');
 }
 
 function renderMetaCard(m) {
-  const pct        = Math.min(100, Math.round((m.guardado / m.total) * 100));
-  const classFill  = pct >= 100 ? 'concluida' : pct >= 70 ? 'quase' : '';
-  const prazoTxt   = m.prazo ? `Prazo: ${formatarDataCurta(m.prazo)}` : 'Sem prazo definido';
+  const pct = Math.min(100, Math.round((m.guardado / m.total) * 100));
+  const classFill = pct >= 100 ? 'concluida' : pct >= 70 ? 'quase' : '';
+  const prazoTxt = m.prazo ? `Prazo: ${formatarDataCurta(m.prazo)}` : 'Sem prazo definido';
+
+  // Renderiza sub-lista de itens caso exista
+  let itensHtml = '';
+  if (m.itens && m.itens.length > 0) {
+    const concluidos = m.itens.filter(i => i.concluido).length;
+    itensHtml = `
+      <div class="meta-itens-section">
+        <div class="meta-itens-header">
+          <span class="meta-itens-titulo">Lista de Itens</span>
+          <span class="meta-itens-stats">${concluidos} / ${m.itens.length} concluídos</span>
+        </div>
+        <div class="meta-itens-lista">
+          ${m.itens.map(i => `
+            <div class="meta-item-row ${i.concluido ? 'concluido' : ''}">
+              <button class="meta-item-check ${i.concluido ? 'checked' : ''}" onclick="toggleItemMeta('${m.id}', '${i.id}')">
+                ${i.concluido ? SVG_CHECK : ''}
+              </button>
+              <span class="meta-item-nome">${escapeHtml(i.nome)}</span>
+              <span class="meta-item-valor">${formatarReais(i.valor)}</span>
+              <button class="meta-item-del" onclick="excluirItemMeta('${m.id}', '${i.id}')" title="Excluir Item">✕</button>
+            </div>
+          `).join('')}
+        </div>
+      </div>`;
+  }
+  // Adiciona o botão para inserir novos itens
+  itensHtml += `<button class="btn-add-item" style="margin-top:8px" onclick="abrirModalItemMeta('${m.id}')">+ Adicionar Item à Lista</button>`;
 
   return `
     <div class="meta-card">
@@ -696,18 +845,17 @@ function renderMetaCard(m) {
           <button class="meta-btn danger" onclick="excluirMeta('${m.id}')">Excluir</button>
         </div>
       </div>
-
       <div class="meta-progresso-wrap">
         <div class="meta-progresso-bar">
-          <div class="meta-progresso-fill ${classFill}"
-               style="width: ${pct}%"></div>
+          <div class="meta-progresso-fill ${classFill}" style="width: ${pct}%"></div>
         </div>
         <div class="meta-valores">
           <span class="meta-guardado">${formatarReais(m.guardado)}</span>
           <span class="meta-total-val">de ${formatarReais(m.total)}</span>
         </div>
-        <div class="meta-pct">${pct}% concluído</div>
+        <div class="meta-pct">${pct}% concluído do valor</div>
       </div>
+      ${itensHtml}
     </div>`;
 }
 
@@ -726,23 +874,440 @@ function renderMetaMini(m) {
     </div>`;
 }
 
+function abrirModalMeta(metaId = null) {
+  App.metaEditandoId = metaId;
+  document.getElementById('modal-meta-titulo').textContent = metaId ? 'Editar Meta' : 'Nova Meta';
+
+  if (metaId) {
+    const m = DataLayer.getMetas().find(x => x.id === metaId);
+    if (!m) return;
+    document.getElementById('meta-nome').value = m.nome;
+    document.getElementById('meta-total').value = formatarValorInput(m.total);
+    document.getElementById('meta-guardado').value = formatarValorInput(m.guardado);
+    document.getElementById('meta-prazo').value = m.prazo || '';
+  } else {
+    document.getElementById('meta-nome').value = '';
+    document.getElementById('meta-total').value = '';
+    document.getElementById('meta-guardado').value = '';
+    document.getElementById('meta-prazo').value = '';
+  }
+  mostrarModal('modal-meta');
+}
+
+function salvarMeta() {
+  const nome = document.getElementById('meta-nome').value.trim();
+  const total = parsearValor(document.getElementById('meta-total').value);
+  const guardado = parsearValor(document.getElementById('meta-guardado').value) || 0;
+  const prazo = document.getElementById('meta-prazo').value;
+
+  if (!nome || !total) { showToast('Nome e Valor Total são obrigatórios.'); return; }
+
+  const metaExistente = App.metaEditandoId ? DataLayer.getMetas().find(m => m.id === App.metaEditandoId) : {};
+
+  const meta = {
+    id: App.metaEditandoId || gerarId(),
+    nome, total, guardado, prazo,
+    aportes: metaExistente.aportes || [],
+    itens: metaExistente.itens || [], // Preserva os itens já salvos
+    criadoEm: metaExistente.criadoEm || new Date().toISOString()
+  };
+
+  if (App.metaEditandoId) DataLayer.updateMeta(App.metaEditandoId, meta);
+  else DataLayer.addMeta(meta);
+
+  closeAllModals();
+  renderMetas();
+  renderHome();
+}
+
+function excluirMeta(id) {
+  if (!confirm('Excluir esta meta permanentemente?')) return;
+  DataLayer.deleteMeta(id);
+  renderMetas();
+  renderHome();
+}
+
+// Aportes
+function abrirModalAporte(metaId) {
+  App.aporteMetaId = metaId;
+  const m = DataLayer.getMetas().find(x => x.id === metaId);
+  document.getElementById('aporte-meta-nome').textContent = m.nome;
+  document.getElementById('aporte-valor').value = '';
+  mostrarModal('modal-aporte');
+}
+
+function salvarAporte() {
+  const valor = parsearValor(document.getElementById('aporte-valor').value);
+  if (!valor) return;
+
+  const meta = DataLayer.getMetas().find(m => m.id === App.aporteMetaId);
+  if (!meta) return;
+
+  DataLayer.updateMeta(App.aporteMetaId, {
+    guardado: meta.guardado + valor,
+    aportes: [...(meta.aportes || []), { valor, data: new Date().toISOString() }]
+  });
+
+  closeAllModals();
+  renderMetas();
+  renderHome();
+}
+
+// Itens de Meta
+function abrirModalItemMeta(metaId) {
+  App.itemMetaAlvoId = metaId;
+  document.getElementById('item-meta-alvo-id').value = metaId;
+  document.getElementById('item-meta-nome').value = '';
+  document.getElementById('item-meta-valor').value = '';
+  mostrarModal('modal-item-meta');
+}
+
+function salvarItemMeta() {
+  const metaId = document.getElementById('item-meta-alvo-id').value;
+  const nome = document.getElementById('item-meta-nome').value.trim();
+  const valor = parsearValor(document.getElementById('item-meta-valor').value);
+
+  if (!nome) { showToast('Escreva o nome do item.'); return; }
+
+  const meta = DataLayer.getMetas().find(m => m.id === metaId);
+  if (!meta) return;
+
+  const novoItem = { id: gerarId(), nome, valor, concluido: false };
+  const itens = [...(meta.itens || []), novoItem];
+
+  DataLayer.updateMeta(metaId, { itens });
+  closeAllModals();
+  renderMetas();
+}
+
+function excluirItemMeta(metaId, itemId) {
+  if (!confirm('Remover este item da lista?')) return;
+  const meta = DataLayer.getMetas().find(m => m.id === metaId);
+  if (!meta) return;
+
+  const itens = meta.itens.filter(i => i.id !== itemId);
+  DataLayer.updateMeta(metaId, { itens });
+  renderMetas();
+}
+
+function toggleItemMeta(metaId, itemId) {
+  const meta = DataLayer.getMetas().find(m => m.id === metaId);
+  if (!meta) return;
+
+  const itens = meta.itens.map(i => i.id === itemId ? { ...i, concluido: !i.concluido } : i);
+  DataLayer.updateMeta(metaId, { itens });
+  renderMetas();
+}
+
 /* ================================================================
-   12. RELATÓRIOS
+   12. NEGÓCIOS E PRODUTOS (Carteiras Independentes)
+================================================================ */
+
+function renderNegocios() {
+  const negocios = DataLayer.getNegocios();
+  const produtos = DataLayer.getProdutos();
+  const transacoes = DataLayer.getTransCarteiras();
+  const container = document.getElementById('lista-negocios');
+
+  if (!container) return;
+
+  if (negocios.length === 0) {
+    container.innerHTML = `<div class="empty-state"><p>Nenhum negócio/carteira cadastrado.</p></div>`;
+    return;
+  }
+
+  container.innerHTML = negocios.map((neg, i) => {
+    const prodNegocio = produtos.filter(p => p.negocioId === neg.id);
+    const transNegocio = transacoes.filter(t => t.negocioId === neg.id);
+    
+    // Calcula saldo deste negócio especificamente
+    const saldo = transNegocio.reduce((acc, t) => acc + (t.tipo === 'entrada' ? t.valor : -t.valor), 0);
+
+    return `
+      <div class="negocio-card">
+        <div class="negocio-card-header" onclick="this.parentElement.classList.toggle('aberto')">
+          <div class="negocio-dot dot-n${i % 6}"></div>
+          <div class="negocio-info">
+            <div class="negocio-nome-txt">${escapeHtml(neg.nome)}</div>
+            ${neg.compensarSaldo ? '<div class="negocio-compensar-tag">Soma ao saldo global</div>' : ''}
+          </div>
+          <div class="negocio-saldo ${saldo >= 0 ? 'verde' : 'vermelho'}">${formatarReais(saldo)}</div>
+          <div class="negocio-chevron">▼</div>
+        </div>
+
+        <div class="negocio-card-body">
+          <div class="negocio-acoes">
+            <button class="negocio-btn verde-btn" onclick="event.stopPropagation(); abrirModalTransCarteira('${neg.id}', null, 'entrada')">+ Entrada</button>
+            <button class="negocio-btn vermelho-btn" onclick="event.stopPropagation(); abrirModalTransCarteira('${neg.id}', null, 'saida')">- Saída</button>
+            <button class="negocio-btn" onclick="event.stopPropagation(); abrirModalProduto('${neg.id}')">+ Produto</button>
+            <button class="negocio-btn" onclick="event.stopPropagation(); abrirModalNegocio('${neg.id}')">Editar</button>
+            <button class="negocio-btn danger-btn" onclick="event.stopPropagation(); excluirNegocio('${neg.id}')">Excluir</button>
+          </div>
+
+          <div class="negocio-subsecao">
+            <div class="negocio-subsecao-titulo">Produtos / Serviços</div>
+            <div class="produtos-lista">
+              ${prodNegocio.length === 0 ? '<div class="empty-small">Nenhum produto cadastrado.</div>' : 
+                prodNegocio.map(p => `
+                  <div class="produto-item">
+                    <div class="produto-info">
+                      <div class="produto-nome-txt">${escapeHtml(p.nome)}</div>
+                      <div class="produto-cat-txt">${escapeHtml(p.categoria)}</div>
+                    </div>
+                    <div class="produto-valor-txt">${formatarReais(p.valor)}</div>
+                    <button class="produto-del-btn" onclick="excluirProduto('${p.id}')">✕</button>
+                  </div>
+                `).join('')}
+            </div>
+          </div>
+
+          <div class="negocio-subsecao">
+            <div class="negocio-subsecao-titulo">Transações Recentes</div>
+            <div class="negocio-trans-lista">
+              ${transNegocio.length === 0 ? '<div class="empty-small">Nenhuma transação.</div>' : 
+                transNegocio.slice(0, 5).map(t => `
+                  <div class="negocio-trans-item" onclick="abrirDetalhe('${t.id}')">
+                    <div class="negocio-trans-desc">
+                      <div class="negocio-trans-nome">${escapeHtml(t.descricao)}</div>
+                      <div class="negocio-trans-cat">${formatarDataCurta(t.data)} · ${escapeHtml(t.categoria)}</div>
+                    </div>
+                    <div class="negocio-trans-val-wrap">
+                      <div class="negocio-trans-val ${t.tipo === 'entrada' ? 'verde' : 'vermelho'}">
+                        ${t.tipo === 'entrada' ? '+' : '-'}${formatarReais(t.valor)}
+                      </div>
+                    </div>
+                  </div>
+                `).join('')}
+            </div>
+          </div>
+        </div>
+      </div>
+    `;
+  }).join('');
+}
+
+function abrirModalNegocio(id = null) {
+  App.negocioEditandoId = id;
+  const titulo = document.getElementById('modal-negocio-titulo');
+
+  if (id) {
+    const n = DataLayer.getNegocios().find(x => x.id === id);
+    titulo.textContent = 'Editar Negócio';
+    document.getElementById('negocio-nome').value = n.nome;
+    document.getElementById('negocio-compensar').checked = !!n.compensarSaldo;
+  } else {
+    titulo.textContent = 'Novo Negócio / Carteira';
+    document.getElementById('negocio-nome').value = '';
+    document.getElementById('negocio-compensar').checked = true;
+  }
+  mostrarModal('modal-negocio');
+}
+
+function salvarNegocio() {
+  const nome = document.getElementById('negocio-nome').value.trim();
+  const compensarSaldo = document.getElementById('negocio-compensar').checked;
+
+  if (!nome) { showToast('Nome é obrigatório.'); return; }
+
+  const neg = {
+    id: App.negocioEditandoId || gerarId(),
+    nome, compensarSaldo,
+    criadoEm: new Date().toISOString()
+  };
+
+  if (App.negocioEditandoId) DataLayer.updateNegocio(neg.id, neg);
+  else DataLayer.addNegocio(neg);
+
+  closeAllModals();
+  renderNegocios();
+  renderHome();
+}
+
+function excluirNegocio(id) {
+  if (!confirm('ATENÇÃO: Apagar este negócio vai apagar também todos os seus produtos e transações! Confirma?')) return;
+  DataLayer.deleteNegocio(id);
+  renderNegocios();
+  renderHome();
+}
+
+// Produtos
+function abrirModalProduto(negocioId, produtoId = null) {
+  document.getElementById('produto-negocio-id').value = negocioId;
+  document.getElementById('produto-editando-id').value = produtoId || '';
+  preencherCategorias('produto-categoria');
+
+  if (produtoId) {
+    const p = DataLayer.getProdutos().find(x => x.id === produtoId);
+    document.getElementById('produto-nome').value = p.nome;
+    document.getElementById('produto-valor').value = formatarValorInput(p.valor);
+    document.getElementById('produto-categoria').value = p.categoria;
+  } else {
+    document.getElementById('produto-nome').value = '';
+    document.getElementById('produto-valor').value = '';
+  }
+  mostrarModal('modal-produto');
+}
+
+function salvarProduto() {
+  const negocioId = document.getElementById('produto-negocio-id').value;
+  const editId = document.getElementById('produto-editando-id').value;
+  const nome = document.getElementById('produto-nome').value.trim();
+  const valor = parsearValor(document.getElementById('produto-valor').value);
+  const categoria = document.getElementById('produto-categoria').value;
+
+  if (!nome || valor <= 0) { showToast('Nome e Valor válidos são necessários.'); return; }
+
+  const p = {
+    id: editId || gerarId(),
+    negocioId, nome, valor, categoria,
+    criadoEm: new Date().toISOString()
+  };
+
+  if (editId) DataLayer.updateProduto(editId, p);
+  else DataLayer.addProduto(p);
+
+  closeAllModals();
+  renderNegocios();
+}
+
+function excluirProduto(id) {
+  if (!confirm('Apagar este produto?')) return;
+  DataLayer.deleteProduto(id);
+  renderNegocios();
+}
+
+/* ================================================================
+   13. TRANSAÇÕES DE NEGÓCIOS (Carteiras)
+================================================================ */
+
+function abrirModalTransCarteira(negocioId, transId = null, tipoPre = 'entrada') {
+  document.getElementById('trans-cart-negocio-id').value = negocioId;
+  document.getElementById('trans-cart-editando-id').value = transId || '';
+  preencherCategorias('trans-cart-categoria');
+
+  // Popula o select de produtos desta carteira
+  const produtos = DataLayer.getProdutos().filter(p => p.negocioId === negocioId);
+  const selectProd = document.getElementById('trans-cart-produto');
+  selectProd.innerHTML = '<option value="">— Valor avulso / Não se aplica —</option>' + 
+    produtos.map(p => `<option value="${p.id}" data-valor="${p.valor}">${p.nome}</option>`).join('');
+
+  if (transId) {
+    const t = DataLayer.getTransCarteiras().find(x => x.id === transId);
+    selectTransCartTipo(t.tipo);
+    document.getElementById('trans-cart-produto').value = t.produtoId || '';
+    document.getElementById('trans-cart-qtd').value = t.qtd || 1;
+    document.getElementById('trans-cart-descricao').value = t.descricao;
+    document.getElementById('trans-cart-valor').value = formatarValorInput(t.valor);
+    document.getElementById('trans-cart-categoria').value = t.categoria;
+    document.getElementById('trans-cart-data').value = t.data;
+    document.getElementById('trans-cart-futura').checked = !!t.futura;
+    document.getElementById('trans-cart-obs').value = t.obs || '';
+    onTransCartProdutoChange(); // Ajusta visibilidade do grupo qtd
+  } else {
+    selectTransCartTipo(tipoPre);
+    document.getElementById('trans-cart-produto').value = '';
+    document.getElementById('trans-cart-qtd').value = '1';
+    document.getElementById('trans-cart-descricao').value = '';
+    document.getElementById('trans-cart-valor').value = '';
+    document.getElementById('trans-cart-data').value = new Date().toISOString().split('T')[0];
+    document.getElementById('trans-cart-futura').checked = false;
+    document.getElementById('trans-cart-obs').value = '';
+    onTransCartProdutoChange();
+  }
+  mostrarModal('modal-trans-carteira');
+}
+
+function selectTransCartTipo(tipo) {
+  document.querySelectorAll('#trans-cart-tipo-toggle .toggle-btn').forEach(btn => {
+    btn.classList.toggle('active', btn.dataset.value === tipo);
+  });
+}
+
+function onTransCartProdutoChange() {
+  const sel = document.getElementById('trans-cart-produto');
+  const qtdGroup = document.getElementById('trans-cart-qtd-group');
+  
+  if (sel.value) {
+    qtdGroup.classList.remove('hidden');
+    calcularValorCarteira();
+    // Autocompleta descrição
+    const option = sel.options[sel.selectedIndex];
+    if (option) {
+       document.getElementById('trans-cart-descricao').value = `Venda: ${option.text}`;
+    }
+  } else {
+    qtdGroup.classList.add('hidden');
+  }
+}
+
+function calcularValorCarteira() {
+  const sel = document.getElementById('trans-cart-produto');
+  if (!sel.value) return;
+  const option = sel.options[sel.selectedIndex];
+  const unitValor = parseFloat(option.getAttribute('data-valor'));
+  const qtd = parseInt(document.getElementById('trans-cart-qtd').value) || 1;
+  document.getElementById('trans-cart-valor').value = formatarValorInput(unitValor * qtd);
+}
+
+function salvarTransCarteira() {
+  const negocioId = document.getElementById('trans-cart-negocio-id').value;
+  const id = document.getElementById('trans-cart-editando-id').value;
+  
+  const btnTipo = document.querySelector('#trans-cart-tipo-toggle .toggle-btn.active');
+  const tipo = btnTipo ? btnTipo.dataset.value : 'entrada';
+  
+  const produtoId = document.getElementById('trans-cart-produto').value || null;
+  const qtd = parseInt(document.getElementById('trans-cart-qtd').value) || 1;
+  const descricao = document.getElementById('trans-cart-descricao').value.trim();
+  const valor = parsearValor(document.getElementById('trans-cart-valor').value);
+  const data = document.getElementById('trans-cart-data').value;
+
+  if (!descricao || valor <= 0 || !data) { showToast('Preencha descrição, valor e data.'); return; }
+
+  const t = {
+    id: id || gerarId(), negocioId, tipo, produtoId, qtd, descricao, valor,
+    categoria: document.getElementById('trans-cart-categoria').value,
+    data, futura: document.getElementById('trans-cart-futura').checked,
+    obs: document.getElementById('trans-cart-obs').value.trim(),
+    criadoEm: new Date().toISOString()
+  };
+
+  if (id) DataLayer.updateTransCarteira(id, t);
+  else DataLayer.addTransCarteira(t);
+
+  closeAllModals();
+  renderNegocios();
+  renderHome();
+  renderHistorico();
+}
+
+function excluirTransCarteira(id) {
+  if (!confirm('Excluir esta transação da carteira?')) return;
+  DataLayer.deleteTransCarteira(id);
+  closeAllModals();
+  renderNegocios();
+  renderHome();
+  renderHistorico();
+}
+
+/* ================================================================
+   14. RELATÓRIOS
 ================================================================ */
 
 function renderRelatorio() {
   atualizarLabelMes();
 
-  const transacoes = DataLayer.getTransacoes();
+  // Para o relatório, unificamos todas as contas
+  const todasTransacoes = getTodasTransacoesUnificadas();
   const mes = App.relatorioMes;
   const ano = App.relatorioAno;
 
-  const doMes = transacoes.filter(t => {
+  const doMes = todasTransacoes.filter(t => {
     const d = new Date(t.data + 'T12:00:00');
     return d.getMonth() === mes && d.getFullYear() === ano;
   });
 
-  const { entradas, saidas } = calcularResumoMes(transacoes, mes, ano);
+  const { entradas, saidas } = calcularResumoMes(todasTransacoes, mes, ano);
   const saldo = entradas - saidas;
 
   document.getElementById('rel-entradas').textContent = formatarReais(entradas);
@@ -753,16 +1318,15 @@ function renderRelatorio() {
   elSaldo.className   = 'relatorio-card-valor ' + (saldo >= 0 ? 'verde' : 'vermelho');
 
   renderGastosPorCategoria(doMes);
-  renderGastosPorPessoa(doMes);
-  renderProjecao(transacoes);
+  renderGastosPorPessoa(doMes); // Pessoas e Negócios
+  renderProjecao(todasTransacoes);
 }
 
 function renderGastosPorCategoria(doMes) {
   const saidas = doMes.filter(t => t.tipo === 'saida');
   const mapa = {};
-  saidas.forEach(t => {
-    mapa[t.categoria] = (mapa[t.categoria] || 0) + t.valor;
-  });
+  saidas.forEach(t => { mapa[t.categoria] = (mapa[t.categoria] || 0) + t.valor; });
+  
   const total = Object.values(mapa).reduce((a, b) => a + b, 0) || 1;
   const sorted = Object.entries(mapa).sort((a, b) => b[1] - a[1]);
 
@@ -791,18 +1355,19 @@ function renderGastosPorPessoa(doMes) {
   const config = DataLayer.getConfig();
   const container = document.getElementById('rel-pessoas');
 
-  const calcPessoa = (usuario) => {
-    const entradas = doMes.filter(t => t.usuario === usuario && t.tipo === 'entrada')
-                          .reduce((s, t) => s + t.valor, 0);
-    const saidas   = doMes.filter(t => t.usuario === usuario && t.tipo === 'saida')
-                          .reduce((s, t) => s + t.valor, 0);
-    return { entradas, saidas };
+  // Calcula U1 e U2 do App Principal
+  const calcNormal = (usuario) => {
+    const trans = doMes.filter(t => !t.isCarteira && t.usuario === usuario);
+    return {
+      entradas: trans.filter(t => t.tipo === 'entrada').reduce((s, t) => s + t.valor, 0),
+      saidas:   trans.filter(t => t.tipo === 'saida').reduce((s, t) => s + t.valor, 0)
+    };
   };
 
-  const u1 = calcPessoa('usuario1');
-  const u2 = calcPessoa('usuario2');
+  const u1 = calcNormal('usuario1');
+  const u2 = calcNormal('usuario2');
 
-  container.innerHTML = `
+  let html = `
     <div class="pessoa-linha">
       <span><span class="pessoa-dot dot-1" style="display:inline-block;margin-right:6px"></span>
         ${escapeHtml(config.nomeU1 || 'Usuário 1')} — Entradas</span>
@@ -823,11 +1388,32 @@ function renderGastosPorPessoa(doMes) {
         ${escapeHtml(config.nomeU2 || 'Usuário 2')} — Saídas</span>
       <span class="vermelho">${formatarReais(u2.saidas)}</span>
     </div>`;
+
+  // Adiciona as Carteiras de Negócios no relatório
+  const negocios = DataLayer.getNegocios();
+  negocios.forEach((neg, i) => {
+    const tcs = doMes.filter(t => t.isCarteira && t.negocioId === neg.id);
+    const ent = tcs.filter(t => t.tipo === 'entrada').reduce((s, t) => s + t.valor, 0);
+    const sai = tcs.filter(t => t.tipo === 'saida').reduce((s, t) => s + t.valor, 0);
+    html += `
+    <div class="pessoa-linha">
+      <span><span class="pessoa-dot dot-n${i % 6}" style="display:inline-block;margin-right:6px"></span>
+        [Carteira] ${escapeHtml(neg.nome)} — Entradas</span>
+      <span class="verde">${formatarReais(ent)}</span>
+    </div>
+    <div class="pessoa-linha">
+      <span><span class="pessoa-dot dot-n${i % 6}" style="display:inline-block;margin-right:6px"></span>
+        [Carteira] ${escapeHtml(neg.nome)} — Saídas</span>
+      <span class="vermelho">${formatarReais(sai)}</span>
+    </div>`;
+  });
+
+  container.innerHTML = html;
 }
 
-function renderProjecao(transacoes) {
+function renderProjecao(todas) {
   const container = document.getElementById('rel-projecao');
-  const fixos = transacoes.filter(t => t.fixo);
+  const fixos = todas.filter(t => t.fixo); // Somente fixos (gerais)
 
   if (fixos.length === 0) {
     container.innerHTML = '<p style="color:var(--text-secondary);font-size:.85rem">Nenhum item fixo cadastrado.</p>';
@@ -836,27 +1422,24 @@ function renderProjecao(transacoes) {
 
   let totalFixoEntradas = 0, totalFixoSaidas = 0;
   const linhas = fixos.map(t => {
-    const val = t.tipo === 'entrada' ? t.valor : -t.valor;
     if (t.tipo === 'entrada') totalFixoEntradas += t.valor;
     else totalFixoSaidas += t.valor;
-    const classe = t.tipo === 'entrada' ? 'verde' : 'vermelho';
-    const prefixo = t.tipo === 'entrada' ? '+' : '-';
     return `
       <div class="projecao-row">
         <span>${escapeHtml(t.descricao)}</span>
-        <span class="${classe}">${prefixo}${formatarReais(t.valor)}</span>
+        <span class="${t.tipo === 'entrada' ? 'verde' : 'vermelho'}">
+          ${t.tipo === 'entrada' ? '+' : '-'}${formatarReais(t.valor)}
+        </span>
       </div>`;
   }).join('');
 
   const saldoProjetado = totalFixoEntradas - totalFixoSaidas;
-  const classeSaldo = saldoProjetado >= 0 ? 'verde' : 'vermelho';
-
   container.innerHTML = `
     <div class="projecao-box">
       ${linhas}
       <div class="projecao-row">
         <span>Saldo fixo projetado</span>
-        <span class="${classeSaldo}">${formatarReais(saldoProjetado)}</span>
+        <span class="${saldoProjetado >= 0 ? 'verde' : 'vermelho'}">${formatarReais(saldoProjetado)}</span>
       </div>
     </div>`;
 }
@@ -871,12 +1454,11 @@ function navegarMes(direcao) {
 function atualizarLabelMes() {
   const meses = ['Janeiro','Fevereiro','Março','Abril','Maio','Junho',
                  'Julho','Agosto','Setembro','Outubro','Novembro','Dezembro'];
-  document.getElementById('relatorio-mes-label').textContent =
-    `${meses[App.relatorioMes]} ${App.relatorioAno}`;
+  document.getElementById('relatorio-mes-label').textContent = `${meses[App.relatorioMes]} ${App.relatorioAno}`;
 }
 
 /* ================================================================
-   13. CONFIGURAÇÕES
+   15. CONFIGURAÇÕES
 ================================================================ */
 
 function renderConfig() {
@@ -885,11 +1467,8 @@ function renderConfig() {
   document.getElementById('config-nome-u2').value = config.nomeU2 || '';
   renderCategoriasCustom();
 
-  // Atualiza nomes nos botões de usuário do modal
-  document.getElementById('btn-usuario1').textContent =
-    `👤 ${config.nomeU1 || 'Usuário 1'}`;
-  document.getElementById('btn-usuario2').textContent =
-    `👤 ${config.nomeU2 || 'Usuário 2'}`;
+  document.getElementById('btn-usuario1').textContent = `👤 ${config.nomeU1 || 'Usuário 1'}`;
+  document.getElementById('btn-usuario2').textContent = `👤 ${config.nomeU2 || 'Usuário 2'}`;
 }
 
 function salvarNomes() {
@@ -911,7 +1490,6 @@ function renderCategoriasCustom() {
     container.innerHTML = '<p style="color:var(--text-muted);font-size:.82rem;margin-bottom:8px">Nenhuma categoria personalizada ainda.</p>';
     return;
   }
-
   container.innerHTML = custom.map(cat => `
     <span class="categoria-chip">
       ${escapeHtml(cat)}
@@ -927,8 +1505,7 @@ function adicionarCategoriaCustom() {
   const config = DataLayer.getConfig();
   const todas  = [...CATEGORIAS_PADRAO, ...(config.categoriasCustom || [])];
   if (todas.map(c => c.toLowerCase()).includes(nome.toLowerCase())) {
-    showToast('Categoria já existe.');
-    return;
+    showToast('Categoria já existe.'); return;
   }
 
   config.categoriasCustom = [...(config.categoriasCustom || []), nome];
@@ -947,23 +1524,20 @@ function removerCategoriaCustom(nome) {
 
 function carregarConfiguracoes() {
   const config = DataLayer.getConfig();
-  // Atualiza labels dos usuários nos botões do modal ao iniciar
-  document.getElementById('btn-usuario1').textContent =
-    `👤 ${config.nomeU1 || 'Usuário 1'}`;
-  document.getElementById('btn-usuario2').textContent =
-    `👤 ${config.nomeU2 || 'Usuário 2'}`;
+  document.getElementById('btn-usuario1').textContent = `👤 ${config.nomeU1 || 'Usuário 1'}`;
+  document.getElementById('btn-usuario2').textContent = `👤 ${config.nomeU2 || 'Usuário 2'}`;
 }
 
 function confirmarLimpeza() {
-  if (!confirm('Isso vai apagar TODAS as transações, metas e configurações. Tem certeza?')) return;
-  if (!confirm('Essa ação é irreversível. Confirma?')) return;
+  if (!confirm('Isto vai apagar TODAS as transações, negócios, metas e configurações. Tem a certeza?')) return;
+  if (!confirm('Esta ação é totalmente irreversível. Confirma?')) return;
   DataLayer.limparTudo();
   showToast('Todos os dados foram apagados.');
   location.reload();
 }
 
 /* ================================================================
-   14. MODAIS (controle de abertura/fechamento)
+   16. UTILITÁRIOS & MODAIS
 ================================================================ */
 
 function mostrarModal(id) {
@@ -974,54 +1548,40 @@ function mostrarModal(id) {
 
 function closeAllModals() {
   document.getElementById('modal-overlay').classList.add('hidden');
-  ['modal-transacao', 'modal-detalhe', 'modal-meta', 'modal-aporte'].forEach(id => {
+  ['modal-transacao', 'modal-detalhe', 'modal-meta', 'modal-aporte', 
+   'modal-rapido', 'modal-negocio', 'modal-produto', 'modal-trans-carteira', 'modal-item-meta'
+  ].forEach(id => {
     document.getElementById(id)?.classList.add('hidden');
   });
   document.body.style.overflow = '';
 }
 
-/* ================================================================
-   15. UTILITÁRIOS
-================================================================ */
-
-/* --- Formatação monetária --- */
 function formatarReais(valor) {
-  return new Intl.NumberFormat('pt-BR', {
-    style: 'currency',
-    currency: 'BRL'
-  }).format(valor || 0);
+  return new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(valor || 0);
 }
 
-/* Formata número para exibir no input (ex: 1500 -> "1.500,00") */
 function formatarValorInput(valor) {
   if (!valor && valor !== 0) return '';
   return valor.toFixed(2).replace('.', ',');
 }
 
-/* Converte string de valor digitada para número (aceita 1.500,00 ou 1500.00 ou 1500,00) */
 function parsearValor(str) {
   if (!str) return 0;
-  // Remove tudo exceto dígitos, vírgula e ponto
   let s = String(str).trim().replace(/[^\d.,]/g, '');
-  // Se tem vírgula como separador decimal (pt-BR)
-  if (s.includes(',')) {
-    s = s.replace(/\./g, '').replace(',', '.');
-  }
+  if (s.includes(',')) s = s.replace(/\./g, '').replace(',', '.');
   const num = parseFloat(s);
   return isNaN(num) ? 0 : num;
 }
 
-/* --- Formatação de datas --- */
 function formatarDataCurta(dataStr) {
   if (!dataStr) return '—';
-  const [ano, mes, dia] = dataStr.split('-').map(Number);
+  const [, mes, dia] = dataStr.split('-');
   return `${String(dia).padStart(2,'0')}/${String(mes).padStart(2,'0')}`;
 }
 
 function formatarDataLonga(dataStr) {
   if (!dataStr) return '—';
-  const meses = ['jan','fev','mar','abr','mai','jun',
-                 'jul','ago','set','out','nov','dez'];
+  const meses = ['jan','fev','mar','abr','mai','jun','jul','ago','set','out','nov','dez'];
   const [ano, mes, dia] = dataStr.split('-').map(Number);
   return `${String(dia).padStart(2,'0')} de ${meses[mes - 1]}, ${ano}`;
 }
@@ -1033,23 +1593,15 @@ function labelData(dataStr) {
   const [ano, mes, dia] = dataStr.split('-').map(Number);
   const data = new Date(ano, mes - 1, dia);
 
-  if (data.toDateString() === hoje.toDateString())   return 'Hoje';
-  if (data.toDateString() === ontem.toDateString())  return 'Ontem';
+  if (data.toDateString() === hoje.toDateString()) return 'Hoje';
+  if (data.toDateString() === ontem.toDateString()) return 'Ontem';
   return formatarDataLonga(dataStr);
 }
 
-/* --- Label do subtipo --- */
-function labelSubtipo(subtipo) {
-  const todos = [...SUBTIPOS.entrada, ...SUBTIPOS.saida];
-  return todos.find(s => s.value === subtipo)?.label || subtipo || '—';
-}
-
-/* --- ID único simples --- */
 function gerarId() {
   return Date.now().toString(36) + Math.random().toString(36).slice(2, 7);
 }
 
-/* --- Escape HTML para prevenir XSS --- */
 function escapeHtml(str) {
   if (!str) return '';
   return String(str)
@@ -1060,7 +1612,6 @@ function escapeHtml(str) {
     .replace(/'/g, '&#39;');
 }
 
-/* --- Toast de feedback --- */
 let toastTimer = null;
 function showToast(msg) {
   const el = document.getElementById('toast');
