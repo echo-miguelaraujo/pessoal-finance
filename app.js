@@ -51,108 +51,197 @@ const SVG_SAIDA   = `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" 
 const SVG_CHECK   = `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg>`;
 
 /* ================================================================
-   2. CAMADA DE DADOS (DataLayer)
+   2. CAMADA DE DADOS (DataLayer) COM SUPABASE
 ================================================================ */
 
+// Vá em Project Settings -> API no Supabase e cole suas chaves aqui
+const SUPABASE_URL = 'https://gzeqiohwnytoqgbxkkqi.supabase.co';
+const SUPABASE_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Imd6ZXFpb2h3bnl0b3FnYnhra3FpIiwicm9sZSI6ImFub24iLCJpYXQiOjE3Nzk5ODgwNDQsImV4cCI6MjA5NTU2NDA0NH0.oyFjultOwIAjDeFI3hhYYAkAT4CMKFd0crEtZqMpPfE';
+
+const supabase = window.supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
+
+// Estado centralizado em memória (Optimistic UI)
+const state = {
+  transacoes: [],
+  metas: [],
+  negocios: [],
+  produtos: [],
+  transCarteiras: [],
+  config: { nomeU1: 'Usuário 1', nomeU2: 'Usuário 2', categoriasCustom: [] }
+};
+
+// Utilitário para log de erros assíncronos e manter o Clean Code
+const handleAsync = ({ error }) => { if (error) console.error("Falha na sincronização:", error); };
+
 const DataLayer = {
-  /* --- Transações Normais (Gerais) --- */
-  getTransacoes: () => JSON.parse(localStorage.getItem('fc_transacoes') || '[]'),
-  setTransacoes: (lista) => localStorage.setItem('fc_transacoes', JSON.stringify(lista)),
+  async init() {
+    try {
+      // Dispara todas as requisições simultaneamente para otimizar a latência de rede
+      const [resT, resM, resN, resP, resTC, resC] = await Promise.all([
+        supabase.from('transacoes').select('dados'),
+        supabase.from('metas').select('dados'),
+        supabase.from('negocios').select('dados'),
+        supabase.from('produtos').select('dados'),
+        supabase.from('trans_carteiras').select('dados'),
+        supabase.from('config').select('dados').eq('id', 'global').maybeSingle()
+      ]);
+
+      // Rotina de Migração: Lê o LocalStorage legado e injeta no BD
+      const oldTransacoes = JSON.parse(localStorage.getItem('fc_transacoes') || '[]');
+      if (resT.data && resT.data.length === 0 && oldTransacoes.length > 0) {
+         console.log("Migrando registros antigos para a nuvem...");
+         await this.migrarLocalStorage();
+         return this.init(); // Recarrega o estado após alimentar o servidor
+      }
+
+      // Popula o estado local em memória
+      if (resT.data) state.transacoes = resT.data.map(r => r.dados);
+      if (resM.data) state.metas = resM.data.map(r => r.dados);
+      if (resN.data) state.negocios = resN.data.map(r => r.dados);
+      if (resP.data) state.produtos = resP.data.map(r => r.dados);
+      if (resTC.data) state.transCarteiras = resTC.data.map(r => r.dados);
+      if (resC.data && resC.data.dados) state.config = resC.data.dados;
+
+    } catch (e) {
+      console.error("Erro crítico na inicialização do backend:", e);
+    }
+  },
+
+  async migrarLocalStorage() {
+    const t = JSON.parse(localStorage.getItem('fc_transacoes') || '[]');
+    if (t.length) await supabase.from('transacoes').insert(t.map(x => ({id: x.id, dados: x})));
+
+    const m = JSON.parse(localStorage.getItem('fc_metas') || '[]');
+    if (m.length) await supabase.from('metas').insert(m.map(x => ({id: x.id, dados: x})));
+
+    const n = JSON.parse(localStorage.getItem('fc_negocios') || '[]');
+    if (n.length) await supabase.from('negocios').insert(n.map(x => ({id: x.id, dados: x})));
+
+    const p = JSON.parse(localStorage.getItem('fc_produtos') || '[]');
+    if (p.length) await supabase.from('produtos').insert(p.map(x => ({id: x.id, dados: x})));
+
+    const tc = JSON.parse(localStorage.getItem('fc_trans_carteiras') || '[]');
+    if (tc.length) await supabase.from('trans_carteiras').insert(tc.map(x => ({id: x.id, dados: x})));
+
+    const c = JSON.parse(localStorage.getItem('fc_config'));
+    if (c) await supabase.from('config').insert([{id: 'global', dados: c}]);
+  },
+
+  /* --- Transações Normais --- */
+  getTransacoes: () => state.transacoes,
   addTransacao(t) {
-    const lista = this.getTransacoes();
-    lista.unshift(t);
-    this.setTransacoes(lista);
+    state.transacoes.unshift(t);
+    supabase.from('transacoes').insert([{ id: t.id, dados: t }]).then(handleAsync);
   },
   updateTransacao(id, dados) {
-    const lista = this.getTransacoes().map(t => t.id === id ? { ...t, ...dados } : t);
-    this.setTransacoes(lista);
+    state.transacoes = state.transacoes.map(t => t.id === id ? { ...t, ...dados } : t);
+    const item = state.transacoes.find(t => t.id === id);
+    supabase.from('transacoes').update({ dados: item }).eq('id', id).then(handleAsync);
   },
   deleteTransacao(id) {
-    const lista = this.getTransacoes().filter(t => t.id !== id);
-    this.setTransacoes(lista);
+    state.transacoes = state.transacoes.filter(t => t.id !== id);
+    supabase.from('transacoes').delete().eq('id', id).then(handleAsync);
   },
 
   /* --- Metas --- */
-  getMetas: () => JSON.parse(localStorage.getItem('fc_metas') || '[]'),
-  setMetas: (lista) => localStorage.setItem('fc_metas', JSON.stringify(lista)),
+  getMetas: () => state.metas,
   addMeta(m) {
-    const lista = this.getMetas();
-    lista.push(m);
-    this.setMetas(lista);
+    state.metas.push(m);
+    supabase.from('metas').insert([{ id: m.id, dados: m }]).then(handleAsync);
   },
   updateMeta(id, dados) {
-    const lista = this.getMetas().map(m => m.id === id ? { ...m, ...dados } : m);
-    this.setMetas(lista);
+    state.metas = state.metas.map(m => m.id === id ? { ...m, ...dados } : m);
+    const item = state.metas.find(m => m.id === id);
+    supabase.from('metas').update({ dados: item }).eq('id', id).then(handleAsync);
   },
   deleteMeta(id) {
-    const lista = this.getMetas().filter(m => m.id !== id);
-    this.setMetas(lista);
+    state.metas = state.metas.filter(m => m.id !== id);
+    supabase.from('metas').delete().eq('id', id).then(handleAsync);
   },
 
   /* --- Negócios (Carteiras) --- */
-  getNegocios: () => JSON.parse(localStorage.getItem('fc_negocios') || '[]'),
-  setNegocios: (lista) => localStorage.setItem('fc_negocios', JSON.stringify(lista)),
+  getNegocios: () => state.negocios,
   addNegocio(n) {
-    const lista = this.getNegocios();
-    lista.push(n);
-    this.setNegocios(lista);
+    state.negocios.push(n);
+    supabase.from('negocios').insert([{ id: n.id, dados: n }]).then(handleAsync);
   },
   updateNegocio(id, dados) {
-    const lista = this.getNegocios().map(n => n.id === id ? { ...n, ...dados } : n);
-    this.setNegocios(lista);
+    state.negocios = state.negocios.map(n => n.id === id ? { ...n, ...dados } : n);
+    const item = state.negocios.find(n => n.id === id);
+    supabase.from('negocios').update({ dados: item }).eq('id', id).then(handleAsync);
   },
   deleteNegocio(id) {
-    const lista = this.getNegocios().filter(n => n.id !== id);
-    this.setNegocios(lista);
-    // Removemos em cascata produtos e transações associadas
-    this.setProdutos(this.getProdutos().filter(p => p.negocioId !== id));
-    this.setTransCarteiras(this.getTransCarteiras().filter(t => t.negocioId !== id));
+    state.negocios = state.negocios.filter(n => n.id !== id);
+    supabase.from('negocios').delete().eq('id', id).then(handleAsync);
+
+    // Deleção em cascata (Lógica profunda baseada em chave estrangeira virtual)
+    const prods = state.produtos.filter(p => p.negocioId === id);
+    state.produtos = state.produtos.filter(p => p.negocioId !== id);
+    prods.forEach(p => supabase.from('produtos').delete().eq('id', p.id).then(handleAsync));
+
+    const trans = state.transCarteiras.filter(tc => tc.negocioId === id);
+    state.transCarteiras = state.transCarteiras.filter(tc => tc.negocioId !== id);
+    trans.forEach(tc => supabase.from('trans_carteiras').delete().eq('id', tc.id).then(handleAsync));
   },
 
-  /* --- Produtos (de Negócios) --- */
-  getProdutos: () => JSON.parse(localStorage.getItem('fc_produtos') || '[]'),
-  setProdutos: (lista) => localStorage.setItem('fc_produtos', JSON.stringify(lista)),
+  /* --- Produtos --- */
+  getProdutos: () => state.produtos,
   addProduto(p) {
-    const lista = this.getProdutos();
-    lista.push(p);
-    this.setProdutos(lista);
+    state.produtos.push(p);
+    supabase.from('produtos').insert([{ id: p.id, dados: p }]).then(handleAsync);
   },
   updateProduto(id, dados) {
-    const lista = this.getProdutos().map(p => p.id === id ? { ...p, ...dados } : p);
-    this.setProdutos(lista);
+    state.produtos = state.produtos.map(p => p.id === id ? { ...p, ...dados } : p);
+    const item = state.produtos.find(p => p.id === id);
+    supabase.from('produtos').update({ dados: item }).eq('id', id).then(handleAsync);
   },
   deleteProduto(id) {
-    const lista = this.getProdutos().filter(p => p.id !== id);
-    this.setProdutos(lista);
+    state.produtos = state.produtos.filter(p => p.id !== id);
+    supabase.from('produtos').delete().eq('id', id).then(handleAsync);
   },
 
   /* --- Transações de Carteira (Negócios) --- */
-  getTransCarteiras: () => JSON.parse(localStorage.getItem('fc_trans_carteiras') || '[]'),
-  setTransCarteiras: (lista) => localStorage.setItem('fc_trans_carteiras', JSON.stringify(lista)),
+  getTransCarteiras: () => state.transCarteiras,
   addTransCarteira(t) {
-    const lista = this.getTransCarteiras();
-    lista.unshift(t);
-    this.setTransCarteiras(lista);
+    state.transCarteiras.unshift(t);
+    supabase.from('trans_carteiras').insert([{ id: t.id, dados: t }]).then(handleAsync);
   },
   updateTransCarteira(id, dados) {
-    const lista = this.getTransCarteiras().map(t => t.id === id ? { ...t, ...dados } : t);
-    this.setTransCarteiras(lista);
+    state.transCarteiras = state.transCarteiras.map(t => t.id === id ? { ...t, ...dados } : t);
+    const item = state.transCarteiras.find(t => t.id === id);
+    supabase.from('trans_carteiras').update({ dados: item }).eq('id', id).then(handleAsync);
   },
   deleteTransCarteira(id) {
-    const lista = this.getTransCarteiras().filter(t => t.id !== id);
-    this.setTransCarteiras(lista);
+    state.transCarteiras = state.transCarteiras.filter(t => t.id !== id);
+    supabase.from('trans_carteiras').delete().eq('id', id).then(handleAsync);
   },
 
   /* --- Configurações globais --- */
-  getConfig: () => JSON.parse(localStorage.getItem('fc_config') || JSON.stringify({
-    nomeU1: 'Usuário 1', nomeU2: 'Usuário 2', categoriasCustom: []
-  })),
-  setConfig: (config) => localStorage.setItem('fc_config', JSON.stringify(config)),
+  getConfig: () => state.config,
+  setConfig: (config) => {
+    state.config = config;
+    supabase.from('config').update({ dados: config }).eq('id', 'global')
+      .then(async ({ error }) => {
+         // Se a atualização falhar porque o registro 'global' não existe, ele executa a inserção.
+         if (error) await supabase.from('config').insert([{ id: 'global', dados: config }]);
+      });
+  },
 
   /* --- Limpar Tudo --- */
   limparTudo() {
-    ['fc_transacoes', 'fc_metas', 'fc_config', 'fc_negocios', 'fc_produtos', 'fc_trans_carteiras']
-      .forEach(k => localStorage.removeItem(k));
+    state.transacoes = [];
+    state.metas = [];
+    state.negocios = [];
+    state.produtos = [];
+    state.transCarteiras = [];
+    
+    // Purga assíncrona orientada pela desigualdade primária (atinge todos os registros dinâmicos gerados)
+    supabase.from('transacoes').delete().neq('id', '0').then(handleAsync);
+    supabase.from('metas').delete().neq('id', '0').then(handleAsync);
+    supabase.from('negocios').delete().neq('id', '0').then(handleAsync);
+    supabase.from('produtos').delete().neq('id', '0').then(handleAsync);
+    supabase.from('trans_carteiras').delete().neq('id', '0').then(handleAsync);
+    localStorage.clear();
   }
 };
 
@@ -189,7 +278,17 @@ const App = {
    4. INICIALIZAÇÃO
 ================================================================ */
 
-document.addEventListener('DOMContentLoaded', () => {
+document.addEventListener('DOMContentLoaded', async () => {
+  // Dá um sutil feedback visual escurecendo o fundo enquanto espera a montagem em memória
+  document.body.style.opacity = '0.4'; 
+  document.body.style.transition = 'opacity 0.3s ease';
+
+  // Espera a resolução das requisições assíncronas do backend e efetua a alocação
+  await DataLayer.init();
+
+  document.body.style.opacity = '1';
+
+  // O fluxo de renderização retoma suas funções de forma estritamente síncrona
   carregarConfiguracoes();
   
   renderHome();
@@ -198,10 +297,10 @@ document.addEventListener('DOMContentLoaded', () => {
   renderHistorico();
   renderRelatorio();
 
-  // Define as datas padrão dos formulários como "Hoje"
+  // Acoplamento dinâmico das datas aos campos HTML
   const hoje = new Date().toISOString().split('T')[0];
-  document.getElementById('campo-data').value = hoje;
-  document.getElementById('trans-cart-data').value = hoje;
+  if(document.getElementById('campo-data')) document.getElementById('campo-data').value = hoje;
+  if(document.getElementById('trans-cart-data')) document.getElementById('trans-cart-data').value = hoje;
 });
 
 /* ================================================================
