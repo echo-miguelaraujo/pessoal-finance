@@ -1620,3 +1620,171 @@ function showToast(msg) {
   if (toastTimer) clearTimeout(toastTimer);
   toastTimer = setTimeout(() => el.classList.add('hidden'), 2800);
 }
+/* ================================================================
+   CONTINUAÇÃO DO CÓDIGO - app.js
+================================================================ */
+
+/**
+ * Função completa: Salvar Registro Rápido
+ * Lê os dados do formulário de registro rápido e salva no DataLayer.
+ */
+function salvarRegistroRapido() {
+  const destinoId = document.getElementById('rapido-destino').value;
+  const valor = parsearValor(document.getElementById('rapido-valor').value);
+  const categoria = document.getElementById('rapido-categoria').value;
+  const obs = document.getElementById('rapido-obs').value.trim();
+  const hoje = new Date().toISOString().split('T')[0];
+
+  // Validação: Garante que o usuário digitou um valor maior que zero
+  if (!valor || valor <= 0) { 
+    showToast('Informe um valor válido.'); 
+    return; 
+  }
+
+  // Verifica se o destino é a conta geral ou um negócio específico
+  if (destinoId === 'geral') {
+    // 1. Salva na Conta Pessoal
+    DataLayer.addTransacao({
+      id: gerarId(),
+      tipo: App.rapidoTipo,
+      subtipo: 'avulso',
+      descricao: obs || 'Registro Rápido',
+      valor: valor,
+      categoria: categoria,
+      data: hoje,
+      usuario: 'usuario1'
+    });
+  } else {
+    // 2. Salva na Carteira do Negócio selecionado
+    DataLayer.addTransCarteira({
+      id: gerarId(),
+      negocioId: destinoId,
+      tipo: App.rapidoTipo,
+      descricao: obs || (document.getElementById('rapido-produto-nome').value || 'Registro Rápido'),
+      valor: valor,
+      categoria: categoria,
+      data: hoje
+    });
+  }
+
+  // Feedback para o usuário e atualização de tela
+  showToast('Registro salvo com sucesso!');
+  closeAllModals();
+  renderHome();
+}
+
+/* ================================================================
+   NEGÓCIOS (Criação e Gestão)
+================================================================ */
+
+/**
+ * Prepara e abre o modal para adicionar um novo negócio.
+ */
+function abrirModalNegocio() {
+  // Limpa os campos do formulário para evitar dados antigos
+  document.getElementById('negocio-nome').value = '';
+  document.getElementById('negocio-compensar').checked = true;
+  
+  // Chama a função que exibe o modal na tela
+  mostrarModal('modal-negocio');
+}
+
+/**
+ * Captura os dados do modal e cria um novo negócio.
+ */
+function salvarNegocio() {
+  const nome = document.getElementById('negocio-nome').value.trim();
+  const compensar = document.getElementById('negocio-compensar').checked;
+
+  // Validação: O nome do negócio é obrigatório
+  if (!nome) {
+    showToast('Digite o nome do empreendimento.');
+    return;
+  }
+
+  // Adiciona o negócio ao banco de dados local
+  DataLayer.addNegocio({
+    id: gerarId(),
+    nome: nome,
+    compensarSaldo: compensar
+  });
+
+  // Fecha o modal e atualiza as telas necessárias
+  showToast('Negócio criado com sucesso!');
+  closeAllModals();
+  renderHome();
+}
+
+/* ================================================================
+   FUNÇÕES UTILITÁRIAS ESSENCIAIS
+================================================================ */
+
+/**
+ * Gera um ID único aleatório (baseado no tempo e números randômicos).
+ * Essencial para identificar cada transação ou negócio.
+ */
+function gerarId() {
+  return Date.now().toString(36) + Math.random().toString(36).substring(2);
+}
+
+/**
+ * Converte um texto digitado pelo usuário (ex: "1.500,00") para número (1500.00).
+ */
+function parsearValor(val) {
+  if (!val) return 0;
+  // Remove os pontos e troca a vírgula por ponto para o JavaScript entender
+  return parseFloat(val.replace(/\./g, '').replace(',', '.')) || 0;
+}
+
+/**
+ * Formata um número em formato de moeda brasileira (R$).
+ */
+function formatarReais(valor) {
+  return valor.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' });
+}
+
+/**
+ * Formata o valor diretamente no campo de texto (Input).
+ */
+function formatarValorInput(valorNum) {
+  return valorNum.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+}
+
+/**
+ * Previne ataques de injeção de código, transformando caracteres especiais em texto seguro.
+ */
+function escapeHtml(str) {
+  if (!str) return '';
+  return str.replace(/[&<>'"]/g, tag => ({
+    '&': '&amp;', '<': '&lt;', '>': '&gt;', "'": '&#39;', '"': '&quot;'
+  }[tag]));
+}
+
+/**
+ * Exibe uma pequena notificação na tela por 3 segundos.
+ */
+function showToast(mensagem) {
+  const toast = document.getElementById('toast');
+  if (toast) {
+    toast.textContent = mensagem;
+    toast.classList.remove('hidden');
+    // Esconde automaticamente após 3000 milissegundos
+    setTimeout(() => toast.classList.add('hidden'), 3000);
+  }
+}
+
+/**
+ * Exibe um modal específico baseado no ID do elemento HTML.
+ */
+function mostrarModal(idModal) {
+  document.getElementById('modal-overlay').classList.remove('hidden');
+  document.getElementById(idModal).classList.remove('hidden');
+}
+
+/**
+ * Esconde todos os modais e a camada de desfoque (overlay) da tela.
+ */
+function closeAllModals() {
+  document.querySelectorAll('.modal, .modal-dialog').forEach(m => m.classList.add('hidden'));
+  document.getElementById('modal-overlay').classList.add('hidden');
+}
