@@ -44,19 +44,9 @@ const SUBTIPOS = {
   ]
 };
 
-const ICONES_CATEGORIA = {
-  'Alimentação':  '🍽️',
-  'Transporte':   '🚗',
-  'Saúde':        '💊',
-  'Moradia':      '🏠',
-  'Assinaturas':  '📱',
-  'Educação':     '📚',
-  'Lazer':        '🎬',
-  'Outros':       '📦',
-  'Salário':      '💼',
-  'Transferência':'💸',
-  '_default':     '💰',
-};
+// SVG de seta para cima (entrada) e para baixo (saída)
+const SVG_ENTRADA = `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><line x1="12" y1="19" x2="12" y2="5"/><polyline points="5 12 12 5 19 12"/></svg>`;
+const SVG_SAIDA   = `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><line x1="12" y1="5" x2="12" y2="19"/><polyline points="19 12 12 19 5 12"/></svg>`;
 
 /* ================================================================
    2. CAMADA DE DADOS (DataLayer)
@@ -403,10 +393,10 @@ function salvarTransacao() {
 
   if (App.transacaoEditandoId) {
     DataLayer.updateTransacao(App.transacaoEditandoId, transacao);
-    showToast('Transação atualizada! ✓');
+    showToast('Transação atualizada.');
   } else {
     DataLayer.addTransacao(transacao);
-    showToast(transacao.tipo === 'entrada' ? 'Entrada registrada! ✓' : 'Saída registrada! ✓');
+    showToast(transacao.tipo === 'entrada' ? 'Entrada registrada.' : 'Saída registrada.');
   }
 
   closeAllModals();
@@ -436,10 +426,7 @@ function renderListaTransacoes(transacoes, containerId, limite = 9999, filtroTip
   lista = lista.slice(0, limite);
 
   if (lista.length === 0) {
-    container.innerHTML = `
-      <div class="empty-state">
-        <p>Nenhuma transação encontrada.</p>
-      </div>`;
+    container.innerHTML = `<div class="empty-state"><p>Nenhuma transação encontrada.</p></div>`;
     return;
   }
 
@@ -463,7 +450,7 @@ function renderTransacaoItem(t, config) {
     ? (config.nomeU1 || 'Usuário 1')
     : (config.nomeU2 || 'Usuário 2');
 
-  const icone = ICONES_CATEGORIA[t.categoria] || ICONES_CATEGORIA['_default'];
+  const svgIcone   = t.tipo === 'entrada' ? SVG_ENTRADA : SVG_SAIDA;
   const classeIcone = t.tipo === 'entrada' ? 'icone-entrada' : 'icone-saida';
   const classeValor = t.tipo === 'entrada' ? 'valor-entrada' : 'valor-saida';
   const prefixo     = t.tipo === 'entrada' ? '+' : '-';
@@ -475,7 +462,7 @@ function renderTransacaoItem(t, config) {
 
   return `
     <div class="transacao-item" onclick="abrirDetalhe('${t.id}')">
-      <div class="transacao-icone ${classeIcone}">${icone}</div>
+      <div class="transacao-icone ${classeIcone}">${svgIcone}</div>
       <div class="transacao-info">
         <div class="transacao-desc">
           ${escapeHtml(t.descricao)}${tagParcela}${tagFixo}
@@ -542,10 +529,11 @@ function abrirDetalhe(id) {
     t.obs ? { label: 'Obs.', val: t.obs } : null,
   ].filter(Boolean);
 
+  const svgDetalhe = t.tipo === 'entrada' ? SVG_ENTRADA : SVG_SAIDA;
   const html = `
     <div class="transacao-icone ${t.tipo === 'entrada' ? 'icone-entrada' : 'icone-saida'}"
-         style="width:48px;height:48px;font-size:1.4rem;border-radius:14px;margin-bottom:8px">
-      ${ICONES_CATEGORIA[t.categoria] || ICONES_CATEGORIA['_default']}
+         style="width:48px;height:48px;border-radius:50%;margin-bottom:8px">
+      ${svgDetalhe}
     </div>
     <div class="detalhe-valor ${classeVal}">${prefixo}${formatarReais(t.valor)}</div>
     <div style="font-size:1rem;font-weight:600;margin-bottom:4px">${escapeHtml(t.descricao)}</div>
@@ -562,11 +550,11 @@ function abrirDetalhe(id) {
     <div class="detalhe-acoes">
       <button class="detalhe-btn btn-editar"
         onclick="closeAllModals(); abrirModalTransacao('${t.tipo}', '${t.id}')">
-        ✏️ Editar
+        Editar
       </button>
       <button class="detalhe-btn btn-excluir"
         onclick="excluirTransacao('${t.id}')">
-        🗑️ Excluir
+        Excluir
       </button>
     </div>`;
 
@@ -623,10 +611,10 @@ function salvarMeta() {
 
   if (App.metaEditandoId) {
     DataLayer.updateMeta(App.metaEditandoId, meta);
-    showToast('Meta atualizada! ✓');
+    showToast('Meta atualizada.');
   } else {
     DataLayer.addMeta(meta);
-    showToast('Meta criada! ✓');
+    showToast('Meta criada.');
   }
 
   closeAllModals();
@@ -646,7 +634,7 @@ function abrirModalAporte(metaId) {
   App.aporteMetaId = metaId;
   const m = DataLayer.getMetas().find(x => x.id === metaId);
   if (!m) return;
-  document.getElementById('aporte-meta-nome').textContent = `🎯 ${m.nome}`;
+  document.getElementById('aporte-meta-nome').textContent = m.nome;
   document.getElementById('aporte-valor').value = '';
   mostrarModal('modal-aporte');
 }
@@ -667,7 +655,7 @@ function salvarAporte() {
     aportes: [...(meta.aportes || []), aporte]
   });
 
-  showToast(`Aporte de ${formatarReais(valor)} adicionado! ✓`);
+  showToast(`Aporte de ${formatarReais(valor)} adicionado.`);
   closeAllModals();
   renderMetas();
   renderHome();
@@ -682,7 +670,7 @@ function renderMetas() {
     container.innerHTML = `
       <div class="empty-state">
         <p>Nenhuma meta cadastrada.</p>
-        <p>Crie uma meta para começar a poupar! 🎯</p>
+        <p>Crie uma meta para começar a poupar.</p>
       </div>`;
     return;
   }
@@ -704,8 +692,8 @@ function renderMetaCard(m) {
         </div>
         <div class="meta-acoes">
           <button class="meta-btn" onclick="abrirModalAporte('${m.id}')">+ Aporte</button>
-          <button class="meta-btn" onclick="abrirModalMeta('${m.id}')">✏️</button>
-          <button class="meta-btn danger" onclick="excluirMeta('${m.id}')">🗑️</button>
+          <button class="meta-btn" onclick="abrirModalMeta('${m.id}')">Editar</button>
+          <button class="meta-btn danger" onclick="excluirMeta('${m.id}')">Excluir</button>
         </div>
       </div>
 
@@ -909,7 +897,7 @@ function salvarNomes() {
   config.nomeU1 = document.getElementById('config-nome-u1').value.trim() || 'Usuário 1';
   config.nomeU2 = document.getElementById('config-nome-u2').value.trim() || 'Usuário 2';
   DataLayer.setConfig(config);
-  showToast('Nomes salvos! ✓');
+  showToast('Nomes salvos.');
   renderHome();
   renderConfig();
 }
@@ -946,7 +934,7 @@ function adicionarCategoriaCustom() {
   config.categoriasCustom = [...(config.categoriasCustom || []), nome];
   DataLayer.setConfig(config);
   input.value = '';
-  showToast(`Categoria "${nome}" criada! ✓`);
+  showToast(`Categoria "${nome}" criada.`);
   renderCategoriasCustom();
 }
 
@@ -967,7 +955,7 @@ function carregarConfiguracoes() {
 }
 
 function confirmarLimpeza() {
-  if (!confirm('⚠️ Isso vai apagar TODAS as transações, metas e configurações. Tem certeza?')) return;
+  if (!confirm('Isso vai apagar TODAS as transações, metas e configurações. Tem certeza?')) return;
   if (!confirm('Essa ação é irreversível. Confirma?')) return;
   DataLayer.limparTudo();
   showToast('Todos os dados foram apagados.');

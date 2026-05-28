@@ -1,7 +1,5 @@
 /* ================================================================
-   FINANÇAS DO CASAL — style.css
-   Fase 1: localStorage
-   Design: Dark minimalista, inspirado em apps financeiros modernos
+   FINANÇAS DO CASAL — style.css  (v2 — flat, sem cards)
    ================================================================ */
 
 /* ----------------------------------------------------------------
@@ -15,7 +13,6 @@
 }
 
 :root {
-  /* Cores base */
   --bg:           #0f0f0f;
   --bg-card:      #1a1a1a;
   --bg-card-2:    #222222;
@@ -23,35 +20,27 @@
   --border:       #2e2e2e;
   --border-light: #3a3a3a;
 
-  /* Texto */
   --text-primary:   #f0f0f0;
   --text-secondary: #888888;
-  --text-muted:     #555555;
+  --text-muted:     #444444;
 
-  /* Acento */
   --verde:        #22c55e;
-  --verde-dim:    #16a34a22;
+  --verde-dim:    rgba(34,197,94,0.12);
   --vermelho:     #ef4444;
-  --vermelho-dim: #dc262622;
+  --vermelho-dim: rgba(239,68,68,0.12);
   --azul:         #3b82f6;
   --amarelo:      #f59e0b;
 
-  /* Tamanhos */
-  --nav-height:   68px;
+  --nav-height:   64px;
   --radius-sm:    10px;
   --radius-md:    16px;
   --radius-lg:    22px;
   --radius-full:  999px;
 
-  /* Sombras */
-  --shadow-card: 0 2px 16px rgba(0,0,0,0.4);
   --shadow-modal: 0 8px 40px rgba(0,0,0,0.7);
 }
 
-html {
-  font-size: 16px;
-  background: var(--bg);
-}
+html { font-size: 16px; background: var(--bg); }
 
 body {
   font-family: 'DM Sans', system-ui, sans-serif;
@@ -61,36 +50,28 @@ body {
   max-width: 480px;
   margin: 0 auto;
   overflow-x: hidden;
-  position: relative;
 }
 
 /* ----------------------------------------------------------------
    2. TIPOGRAFIA
 ---------------------------------------------------------------- */
-h1 { font-size: 2rem; font-weight: 700; letter-spacing: -0.5px; }
 h2 { font-size: 1.2rem; font-weight: 600; }
-h3 { font-size: 1rem; font-weight: 600; }
+h3 { font-size: 1rem;   font-weight: 600; }
 p  { line-height: 1.5; }
 
 /* ----------------------------------------------------------------
-   3. LAYOUT PRINCIPAL
+   3. LAYOUT
 ---------------------------------------------------------------- */
 #app {
-  padding-bottom: calc(var(--nav-height) + 16px);
+  padding-bottom: calc(var(--nav-height) + 20px);
   min-height: 100dvh;
 }
 
-.tela {
-  display: none;
-  padding: 0 0 24px;
-  animation: fadeIn 0.2s ease;
-}
-.tela.ativa {
-  display: block;
-}
+.tela { display: none; padding-bottom: 24px; animation: fadeIn 0.2s ease; }
+.tela.ativa { display: block; }
 
 @keyframes fadeIn {
-  from { opacity: 0; transform: translateY(6px); }
+  from { opacity: 0; transform: translateY(5px); }
   to   { opacity: 1; transform: translateY(0); }
 }
 
@@ -101,45 +82,44 @@ p  { line-height: 1.5; }
   display: flex;
   align-items: center;
   justify-content: space-between;
-  padding: 20px 20px 12px;
+  padding: 20px 20px 14px;
   position: sticky;
   top: 0;
   background: var(--bg);
   z-index: 10;
-  border-bottom: 1px solid var(--border);
 }
 
-.header-info {
-  display: flex;
-  align-items: center;
-  gap: 10px;
-}
+.header-info { display: flex; align-items: center; gap: 10px; }
 
 .header-avatars {
-  font-size: 1.4rem;
+  width: 32px; height: 32px;
+  border-radius: 50%;
+  background: var(--bg-card-2);
+  display: flex; align-items: center; justify-content: center;
+  font-size: 0.95rem;
 }
 
 .header-title {
-  font-size: 1rem;
+  font-size: 0.95rem;
   font-weight: 600;
   color: var(--text-primary);
 }
 
+/* Ícone de config — SVG inline via JS, ou texto limpo */
 .header-icon-btn {
   background: none;
   border: none;
-  font-size: 1.3rem;
+  color: var(--text-secondary);
   cursor: pointer;
-  padding: 4px;
-  border-radius: var(--radius-sm);
-  transition: background 0.15s;
+  padding: 6px;
+  border-radius: 8px;
+  display: flex; align-items: center; justify-content: center;
+  transition: color 0.15s;
 }
-.header-icon-btn:hover { background: var(--bg-card-2); }
+.header-icon-btn:hover { color: var(--text-primary); }
+.header-icon-btn svg { width: 20px; height: 20px; }
 
-.tela-titulo {
-  font-size: 1.1rem;
-  font-weight: 700;
-}
+.tela-titulo { font-size: 1.1rem; font-weight: 700; }
 
 .btn-header-acao {
   background: var(--verde);
@@ -148,7 +128,7 @@ p  { line-height: 1.5; }
   padding: 6px 14px;
   border-radius: var(--radius-full);
   font-family: inherit;
-  font-size: 0.85rem;
+  font-size: 0.82rem;
   font-weight: 700;
   cursor: pointer;
   transition: opacity 0.15s;
@@ -156,67 +136,49 @@ p  { line-height: 1.5; }
 .btn-header-acao:hover { opacity: 0.85; }
 
 /* ----------------------------------------------------------------
-   5. CARD DE SALDO
+   5. CARD DE SALDO (único elemento com fundo/borda)
 ---------------------------------------------------------------- */
 .saldo-card {
-  margin: 20px 16px 0;
+  margin: 4px 16px 0;
   background: var(--bg-card);
   border: 1px solid var(--border);
   border-radius: var(--radius-lg);
-  padding: 28px 24px 24px;
-  box-shadow: var(--shadow-card);
+  padding: 24px 22px 22px;
 }
 
 .saldo-label {
-  font-size: 0.8rem;
+  font-size: 0.75rem;
   color: var(--text-secondary);
   text-transform: uppercase;
   letter-spacing: 0.08em;
-  margin-bottom: 6px;
+  margin-bottom: 4px;
 }
 
 .saldo-total {
   font-size: 2.4rem;
   font-weight: 700;
-  letter-spacing: -1px;
+  letter-spacing: -1.5px;
   color: var(--text-primary);
-  margin-bottom: 20px;
+  margin-bottom: 18px;
+  line-height: 1.1;
 }
 
 .saldo-individuais {
   display: flex;
   flex-direction: column;
-  gap: 10px;
-  padding-top: 16px;
+  gap: 8px;
+  padding-top: 14px;
   border-top: 1px solid var(--border);
 }
 
-.saldo-pessoa {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-}
+.saldo-pessoa { display: flex; align-items: center; gap: 8px; }
 
-.pessoa-dot {
-  width: 8px;
-  height: 8px;
-  border-radius: 50%;
-  flex-shrink: 0;
-}
+.pessoa-dot { width: 7px; height: 7px; border-radius: 50%; flex-shrink: 0; }
 .dot-1 { background: var(--azul); }
 .dot-2 { background: var(--amarelo); }
 
-.pessoa-nome {
-  flex: 1;
-  font-size: 0.9rem;
-  color: var(--text-secondary);
-}
-
-.pessoa-valor {
-  font-size: 0.95rem;
-  font-weight: 600;
-  color: var(--text-primary);
-}
+.pessoa-nome { flex: 1; font-size: 0.85rem; color: var(--text-secondary); }
+.pessoa-valor { font-size: 0.9rem; font-weight: 600; }
 
 /* ----------------------------------------------------------------
    6. BOTÕES DE AÇÃO RÁPIDA
@@ -224,7 +186,7 @@ p  { line-height: 1.5; }
 .acoes-rapidas {
   display: grid;
   grid-template-columns: 1fr 1fr;
-  gap: 12px;
+  gap: 10px;
   margin: 16px 16px 0;
 }
 
@@ -233,44 +195,36 @@ p  { line-height: 1.5; }
   align-items: center;
   justify-content: center;
   gap: 8px;
-  padding: 14px 12px;
+  padding: 13px 10px;
   border: none;
   border-radius: var(--radius-md);
   font-family: inherit;
-  font-size: 0.9rem;
+  font-size: 0.88rem;
   font-weight: 600;
   cursor: pointer;
   transition: opacity 0.15s, transform 0.1s;
 }
 .btn-acao:active { transform: scale(0.97); }
-
-.btn-acao-icon {
-  font-size: 1.1rem;
-  font-weight: 700;
-}
+.btn-acao svg { width: 16px; height: 16px; flex-shrink: 0; }
 
 .btn-saida {
   background: var(--vermelho-dim);
   color: var(--vermelho);
-  border: 1px solid rgba(239,68,68,0.2);
+  border: 1px solid rgba(239,68,68,0.18);
 }
 .btn-entrada {
   background: var(--verde-dim);
   color: var(--verde);
-  border: 1px solid rgba(34,197,94,0.2);
+  border: 1px solid rgba(34,197,94,0.18);
 }
 
 /* ----------------------------------------------------------------
-   7. RESUMO DO MÊS
+   7. RESUMO DO MÊS — flat, sem card
 ---------------------------------------------------------------- */
 .resumo-mes {
   display: flex;
   align-items: center;
-  margin: 16px 16px 0;
-  background: var(--bg-card);
-  border: 1px solid var(--border);
-  border-radius: var(--radius-md);
-  padding: 16px;
+  margin: 20px 20px 0;
   gap: 0;
 }
 
@@ -278,46 +232,39 @@ p  { line-height: 1.5; }
   flex: 1;
   display: flex;
   flex-direction: column;
-  gap: 4px;
-  align-items: center;
+  gap: 2px;
 }
 
-.resumo-label {
-  font-size: 0.75rem;
-  color: var(--text-secondary);
-  text-align: center;
-}
+.resumo-item:last-child { align-items: flex-end; }
 
-.resumo-valor {
-  font-size: 1rem;
-  font-weight: 700;
-}
+.resumo-label { font-size: 0.72rem; color: var(--text-secondary); }
+.resumo-valor { font-size: 1rem; font-weight: 700; }
 
 .resumo-divider {
-  width: 1px;
-  height: 36px;
+  width: 1px; height: 32px;
   background: var(--border);
-  margin: 0 8px;
+  margin: 0 16px;
 }
 
 /* ----------------------------------------------------------------
-   8. SEÇÕES HOME
+   8. SEÇÕES HOME — flat
 ---------------------------------------------------------------- */
-.secao-home {
-  margin: 24px 16px 0;
-}
+.secao-home { margin: 28px 0 0; }
 
 .secao-header {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  margin-bottom: 12px;
+  margin-bottom: 4px;
+  padding: 0 20px;
 }
 
 .secao-titulo {
-  font-size: 0.95rem;
+  font-size: 0.88rem;
   font-weight: 700;
-  color: var(--text-primary);
+  color: var(--text-secondary);
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
 }
 
 .link-btn {
@@ -325,56 +272,50 @@ p  { line-height: 1.5; }
   border: none;
   color: var(--azul);
   font-family: inherit;
-  font-size: 0.82rem;
+  font-size: 0.8rem;
   cursor: pointer;
-  padding: 2px 0;
 }
 
 /* ----------------------------------------------------------------
-   9. LISTA DE TRANSAÇÕES
+   9. LISTA DE TRANSAÇÕES — estilo flat como referência
 ---------------------------------------------------------------- */
 .lista-transacoes {
   display: flex;
   flex-direction: column;
-  gap: 1px;
 }
 
 .transacao-item {
   display: flex;
   align-items: center;
-  gap: 12px;
-  background: var(--bg-card);
-  padding: 14px 16px;
+  gap: 14px;
+  padding: 13px 20px;
   cursor: pointer;
-  transition: background 0.15s;
-  border-radius: var(--radius-md);
-  margin-bottom: 6px;
-  border: 1px solid var(--border);
+  transition: background 0.12s;
+  border-radius: 0;
+  border: none;
+  background: transparent;
 }
-.transacao-item:hover { background: var(--bg-card-2); }
+.transacao-item:hover { background: rgba(255,255,255,0.03); }
 
+/* Ícone de seta dentro de círculo colorido */
 .transacao-icone {
-  width: 40px;
-  height: 40px;
-  border-radius: 12px;
+  width: 38px;
+  height: 38px;
+  border-radius: 50%;
   display: flex;
   align-items: center;
   justify-content: center;
-  font-size: 1.1rem;
   flex-shrink: 0;
 }
+.transacao-icone svg { width: 16px; height: 16px; }
 .icone-entrada { background: var(--verde-dim); }
 .icone-saida   { background: var(--vermelho-dim); }
 
-.transacao-info {
-  flex: 1;
-  min-width: 0;
-}
+.transacao-info { flex: 1; min-width: 0; }
 
 .transacao-desc {
   font-size: 0.9rem;
   font-weight: 500;
-  color: var(--text-primary);
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
@@ -386,55 +327,44 @@ p  { line-height: 1.5; }
   margin-top: 2px;
 }
 
-.transacao-valor-wrap {
-  text-align: right;
-  flex-shrink: 0;
-}
+.transacao-valor-wrap { text-align: right; flex-shrink: 0; }
 
-.transacao-valor {
-  font-size: 0.95rem;
-  font-weight: 700;
-}
+.transacao-valor { font-size: 0.9rem; font-weight: 600; }
 .valor-entrada { color: var(--verde); }
-.valor-saida   { color: var(--vermelho); }
+.valor-saida   { color: var(--text-primary); }
 
-.transacao-data {
-  font-size: 0.72rem;
-  color: var(--text-muted);
-  margin-top: 2px;
-}
+.transacao-data { font-size: 0.7rem; color: var(--text-muted); margin-top: 1px; }
 
-/* Agrupamento por data */
-.grupo-data-label {
-  font-size: 0.75rem;
-  color: var(--text-muted);
-  text-transform: uppercase;
-  letter-spacing: 0.06em;
-  padding: 12px 0 6px;
-}
-
-/* Tag de parcela */
+/* Tags */
 .tag-parcela {
   display: inline-block;
-  font-size: 0.65rem;
+  font-size: 0.62rem;
   background: var(--bg-input);
   color: var(--text-secondary);
   border-radius: 4px;
-  padding: 1px 5px;
+  padding: 1px 4px;
+  margin-left: 4px;
+  vertical-align: middle;
+}
+.tag-fixo {
+  display: inline-block;
+  font-size: 0.62rem;
+  background: rgba(59,130,246,0.12);
+  color: var(--azul);
+  border-radius: 4px;
+  padding: 1px 4px;
   margin-left: 4px;
   vertical-align: middle;
 }
 
-/* Tag de fixo */
-.tag-fixo {
-  display: inline-block;
-  font-size: 0.65rem;
-  background: rgba(59,130,246,0.15);
-  color: var(--azul);
-  border-radius: 4px;
-  padding: 1px 5px;
-  margin-left: 4px;
-  vertical-align: middle;
+/* Separador de grupo de data */
+.grupo-data-label {
+  font-size: 0.72rem;
+  color: var(--text-muted);
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  padding: 16px 20px 4px;
+  font-weight: 600;
 }
 
 /* ----------------------------------------------------------------
@@ -445,24 +375,23 @@ p  { line-height: 1.5; }
   padding: 48px 24px;
   color: var(--text-secondary);
   line-height: 1.8;
+  font-size: 0.9rem;
 }
 
 /* ----------------------------------------------------------------
-   11. METAS
+   11. METAS — flat
 ---------------------------------------------------------------- */
 .lista-metas {
-  padding: 0 16px;
+  padding: 0;
   display: flex;
   flex-direction: column;
-  gap: 12px;
 }
 
 .meta-card {
-  background: var(--bg-card);
-  border: 1px solid var(--border);
-  border-radius: var(--radius-md);
-  padding: 18px;
+  padding: 16px 20px;
+  border-bottom: 1px solid var(--border);
 }
+.meta-card:last-child { border-bottom: none; }
 
 .meta-header {
   display: flex;
@@ -471,43 +400,28 @@ p  { line-height: 1.5; }
   margin-bottom: 12px;
 }
 
-.meta-nome {
-  font-size: 0.95rem;
-  font-weight: 600;
-}
+.meta-nome { font-size: 0.95rem; font-weight: 600; }
+.meta-prazo { font-size: 0.75rem; color: var(--text-secondary); margin-top: 2px; }
 
-.meta-prazo {
-  font-size: 0.75rem;
-  color: var(--text-secondary);
-  margin-top: 2px;
-}
-
-.meta-acoes {
-  display: flex;
-  gap: 6px;
-}
+.meta-acoes { display: flex; gap: 6px; flex-shrink: 0; }
 
 .meta-btn {
   background: var(--bg-input);
   border: none;
   color: var(--text-secondary);
   font-family: inherit;
-  font-size: 0.75rem;
+  font-size: 0.72rem;
   padding: 4px 10px;
   border-radius: var(--radius-full);
   cursor: pointer;
   transition: background 0.15s;
+  white-space: nowrap;
 }
-.meta-btn:hover { background: var(--border-light); }
+.meta-btn:hover { background: var(--border-light); color: var(--text-primary); }
 .meta-btn.danger:hover { background: var(--vermelho-dim); color: var(--vermelho); }
 
-/* Barra de progresso */
-.meta-progresso-wrap {
-  margin-bottom: 10px;
-}
-
 .meta-progresso-bar {
-  height: 6px;
+  height: 5px;
   background: var(--bg-input);
   border-radius: var(--radius-full);
   overflow: hidden;
@@ -520,57 +434,32 @@ p  { line-height: 1.5; }
   background: var(--verde);
   transition: width 0.5s ease;
 }
-
-.meta-progresso-fill.quase {
-  background: var(--amarelo);
-}
-
-.meta-progresso-fill.concluida {
-  background: var(--verde);
-}
+.meta-progresso-fill.quase    { background: var(--amarelo); }
+.meta-progresso-fill.concluida { background: var(--verde); }
 
 .meta-valores {
   display: flex;
   justify-content: space-between;
   font-size: 0.8rem;
 }
-
-.meta-guardado {
-  color: var(--verde);
-  font-weight: 600;
-}
-
-.meta-total-val {
-  color: var(--text-secondary);
-}
-
-.meta-pct {
-  font-size: 0.75rem;
-  color: var(--text-muted);
-  text-align: right;
-  margin-top: 2px;
-}
+.meta-guardado   { color: var(--verde); font-weight: 600; }
+.meta-total-val  { color: var(--text-secondary); }
+.meta-pct { font-size: 0.72rem; color: var(--text-muted); text-align: right; margin-top: 2px; }
 
 /* Mini meta na home */
 .meta-mini {
-  background: var(--bg-card);
-  border: 1px solid var(--border);
-  border-radius: var(--radius-md);
-  padding: 14px 16px;
-  margin-bottom: 8px;
+  padding: 12px 20px;
+  border-bottom: 1px solid var(--border);
 }
+.meta-mini:last-child { border-bottom: none; }
 
 .meta-mini-header {
   display: flex;
   justify-content: space-between;
   font-size: 0.85rem;
-  margin-bottom: 8px;
+  margin-bottom: 7px;
 }
-
-.meta-mini-pct {
-  color: var(--text-secondary);
-  font-size: 0.8rem;
-}
+.meta-mini-pct { color: var(--text-secondary); font-size: 0.78rem; }
 
 /* ----------------------------------------------------------------
    12. TELA REGISTRAR
@@ -578,51 +467,46 @@ p  { line-height: 1.5; }
 .registrar-opcoes {
   display: flex;
   flex-direction: column;
-  gap: 12px;
-  padding: 16px;
+  gap: 1px;
+  margin-top: 8px;
 }
 
 .card-opcao {
   display: flex;
   align-items: center;
   gap: 16px;
-  background: var(--bg-card);
-  border: 1px solid var(--border);
-  border-radius: var(--radius-md);
-  padding: 18px;
+  background: transparent;
+  border: none;
+  border-bottom: 1px solid var(--border);
+  padding: 18px 20px;
   cursor: pointer;
-  transition: background 0.15s;
+  transition: background 0.12s;
   text-align: left;
   color: var(--text-primary);
   font-family: inherit;
+  width: 100%;
 }
-.card-opcao:hover { background: var(--bg-card-2); }
-.card-opcao strong { display: block; font-size: 0.95rem; margin-bottom: 2px; }
-.card-opcao p { font-size: 0.8rem; color: var(--text-secondary); }
+.card-opcao:hover { background: rgba(255,255,255,0.03); }
+.card-opcao strong { display: block; font-size: 0.92rem; margin-bottom: 2px; }
+.card-opcao p { font-size: 0.78rem; color: var(--text-secondary); }
 
 .card-opcao-icon {
-  width: 44px;
-  height: 44px;
-  border-radius: 12px;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  font-size: 1.3rem;
-  font-weight: 700;
+  width: 40px; height: 40px;
+  border-radius: 50%;
+  display: flex; align-items: center; justify-content: center;
   flex-shrink: 0;
 }
+.card-opcao-icon svg { width: 18px; height: 18px; }
 .card-opcao-icon.verde   { background: var(--verde-dim); color: var(--verde); }
 .card-opcao-icon.vermelho { background: var(--vermelho-dim); color: var(--vermelho); }
 
 /* Filtros */
-.filtros-wrap {
-  padding: 0 16px;
-}
+.filtros-wrap { padding: 0; }
 
 .filtros {
   display: flex;
   gap: 8px;
-  margin-bottom: 16px;
+  padding: 16px 20px 12px;
   flex-wrap: wrap;
 }
 
@@ -631,8 +515,8 @@ p  { line-height: 1.5; }
   border: 1px solid var(--border);
   color: var(--text-secondary);
   font-family: inherit;
-  font-size: 0.82rem;
-  padding: 6px 14px;
+  font-size: 0.8rem;
+  padding: 5px 14px;
   border-radius: var(--radius-full);
   cursor: pointer;
   transition: all 0.15s;
@@ -645,96 +529,69 @@ p  { line-height: 1.5; }
 }
 
 /* ----------------------------------------------------------------
-   13. RELATÓRIOS
+   13. RELATÓRIOS — flat
 ---------------------------------------------------------------- */
 .relatorio-mes-wrap {
   display: flex;
   align-items: center;
-  justify-content: center;
-  gap: 20px;
-  padding: 16px;
+  justify-content: space-between;
+  padding: 12px 20px 0;
 }
 
 .mes-nav {
-  background: var(--bg-card);
-  border: 1px solid var(--border);
-  color: var(--text-primary);
-  font-size: 1.3rem;
-  width: 36px;
-  height: 36px;
-  border-radius: 50%;
+  background: none;
+  border: none;
+  color: var(--text-secondary);
+  font-size: 1.4rem;
   cursor: pointer;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  transition: background 0.15s;
+  padding: 4px 8px;
+  transition: color 0.15s;
 }
-.mes-nav:hover { background: var(--bg-card-2); }
+.mes-nav:hover { color: var(--text-primary); }
 
 .mes-label {
   font-size: 1rem;
   font-weight: 600;
-  min-width: 140px;
   text-align: center;
 }
 
 .relatorio-cards {
   display: flex;
   flex-direction: column;
-  gap: 10px;
-  padding: 0 16px 16px;
+  border-bottom: 1px solid var(--border);
+  margin-top: 16px;
 }
 
 .relatorio-card {
-  background: var(--bg-card);
-  border: 1px solid var(--border);
-  border-radius: var(--radius-md);
-  padding: 16px;
   display: flex;
   justify-content: space-between;
   align-items: center;
-}
-.relatorio-card.verde  { border-left: 3px solid var(--verde); }
-.relatorio-card.vermelho { border-left: 3px solid var(--vermelho); }
-.relatorio-card.neutro { border-left: 3px solid var(--azul); }
-
-.relatorio-card-label {
-  font-size: 0.82rem;
-  color: var(--text-secondary);
+  padding: 14px 20px;
+  border-top: 1px solid var(--border);
+  background: transparent;
 }
 
-.relatorio-card-valor {
-  font-size: 1.1rem;
-  font-weight: 700;
-}
+.relatorio-card-label { font-size: 0.82rem; color: var(--text-secondary); }
+.relatorio-card-valor { font-size: 1rem; font-weight: 700; }
 
-.secao-relatorio {
-  padding: 0 16px 16px;
-}
-.secao-relatorio .secao-titulo {
-  margin-bottom: 12px;
-}
+.secao-relatorio { padding: 24px 20px 0; }
+.secao-relatorio .secao-titulo { margin-bottom: 12px; }
 
 /* Barras de categoria */
-.cat-bar-item {
-  margin-bottom: 12px;
-}
-
+.cat-bar-item { margin-bottom: 14px; }
 .cat-bar-header {
   display: flex;
   justify-content: space-between;
   font-size: 0.82rem;
-  margin-bottom: 4px;
+  margin-bottom: 5px;
   color: var(--text-secondary);
 }
-
 .cat-bar-track {
-  height: 5px;
+  height: 4px;
   background: var(--bg-input);
   border-radius: var(--radius-full);
   overflow: hidden;
 }
-
 .cat-bar-fill {
   height: 100%;
   background: var(--vermelho);
@@ -742,65 +599,59 @@ p  { line-height: 1.5; }
   transition: width 0.4s ease;
 }
 
-/* Linha de pessoa */
+/* Por pessoa */
 .pessoa-linha {
   display: flex;
   justify-content: space-between;
   align-items: center;
   padding: 10px 0;
   border-bottom: 1px solid var(--border);
-  font-size: 0.88rem;
+  font-size: 0.85rem;
 }
 .pessoa-linha:last-child { border-bottom: none; }
 
 /* Projeção */
-.projecao-box {
-  background: var(--bg-card);
-  border: 1px solid var(--border);
-  border-radius: var(--radius-md);
-  padding: 16px;
-}
-
+.projecao-box { display: flex; flex-direction: column; }
 .projecao-row {
   display: flex;
   justify-content: space-between;
   font-size: 0.85rem;
-  padding: 6px 0;
+  padding: 8px 0;
   border-bottom: 1px solid var(--border);
   color: var(--text-secondary);
 }
-.projecao-row:last-child { border-bottom: none; font-weight: 600; color: var(--text-primary); }
-
-/* ----------------------------------------------------------------
-   14. CONFIGURAÇÕES
----------------------------------------------------------------- */
-.config-section {
-  margin: 16px 16px 0;
-  background: var(--bg-card);
-  border: 1px solid var(--border);
-  border-radius: var(--radius-md);
-  padding: 20px;
+.projecao-row:last-child {
+  border-bottom: none;
+  font-weight: 600;
+  color: var(--text-primary);
 }
 
+/* ----------------------------------------------------------------
+   14. CONFIGURAÇÕES — flat
+---------------------------------------------------------------- */
+.config-section {
+  margin: 0;
+  padding: 20px;
+  border-bottom: 1px solid var(--border);
+}
+.config-section:last-child { border-bottom: none; }
+
 .config-titulo {
-  font-size: 0.82rem;
+  font-size: 0.75rem;
   text-transform: uppercase;
   letter-spacing: 0.08em;
   color: var(--text-secondary);
   margin-bottom: 16px;
+  font-weight: 700;
 }
 
 .config-sobre {
   font-size: 0.82rem;
   color: var(--text-secondary);
-  line-height: 1.6;
+  line-height: 1.7;
 }
 
-.add-categoria-wrap {
-  display: flex;
-  gap: 8px;
-  margin-top: 12px;
-}
+.add-categoria-wrap { display: flex; gap: 8px; margin-top: 12px; }
 .add-categoria-wrap input { flex: 1; }
 
 .categoria-chip {
@@ -811,9 +662,8 @@ p  { line-height: 1.5; }
   border: 1px solid var(--border);
   border-radius: var(--radius-full);
   padding: 4px 10px 4px 12px;
-  font-size: 0.82rem;
+  font-size: 0.8rem;
   margin: 4px 4px 4px 0;
-  color: var(--text-primary);
 }
 
 .chip-del {
@@ -821,26 +671,20 @@ p  { line-height: 1.5; }
   border: none;
   color: var(--text-muted);
   cursor: pointer;
-  font-size: 0.9rem;
+  font-size: 0.85rem;
   padding: 0 2px;
   line-height: 1;
 }
 .chip-del:hover { color: var(--vermelho); }
 
-.danger-zone {
-  border-color: rgba(239,68,68,0.3);
-}
-
 /* ----------------------------------------------------------------
    15. FORMULÁRIOS & INPUTS
 ---------------------------------------------------------------- */
-.field-group {
-  margin-bottom: 16px;
-}
+.field-group { margin-bottom: 16px; }
 
 .field-group label {
   display: block;
-  font-size: 0.8rem;
+  font-size: 0.78rem;
   color: var(--text-secondary);
   margin-bottom: 6px;
   font-weight: 500;
@@ -864,15 +708,10 @@ textarea {
   appearance: none;
   -webkit-appearance: none;
 }
-
-input:focus,
-select:focus,
-textarea:focus {
-  border-color: var(--azul);
-}
+input:focus, select:focus, textarea:focus { border-color: var(--azul); }
 
 input[type="date"]::-webkit-calendar-picker-indicator {
-  filter: invert(0.6);
+  filter: invert(0.5);
   cursor: pointer;
 }
 
@@ -891,17 +730,13 @@ textarea { resize: vertical; min-height: 64px; }
   justify-content: space-between;
   gap: 12px;
 }
-.field-row label {
-  margin-bottom: 0;
-  flex: 1;
-}
+.field-row label { margin-bottom: 0; flex: 1; }
 
-/* Toggle switch */
+/* Switch */
 .switch {
   position: relative;
   display: inline-block;
-  width: 44px;
-  height: 24px;
+  width: 44px; height: 24px;
   flex-shrink: 0;
 }
 .switch input { opacity: 0; width: 0; height: 0; }
@@ -917,33 +752,24 @@ textarea { resize: vertical; min-height: 64px; }
 .slider::before {
   content: '';
   position: absolute;
-  width: 16px;
-  height: 16px;
-  left: 3px;
-  top: 3px;
+  width: 16px; height: 16px;
+  left: 3px; top: 3px;
   background: var(--text-secondary);
   border-radius: 50%;
   transition: transform 0.2s, background 0.2s;
 }
 .switch input:checked + .slider { background: var(--verde); border-color: var(--verde); }
-.switch input:checked + .slider::before {
-  transform: translateX(20px);
-  background: #000;
-}
+.switch input:checked + .slider::before { transform: translateX(20px); background: #000; }
 
-/* Toggle de botões (tipo / usuário) */
-.toggle-group {
-  display: flex;
-  gap: 8px;
-}
-
+/* Toggle */
+.toggle-group { display: flex; gap: 8px; }
 .toggle-btn {
   flex: 1;
   background: var(--bg-input);
   border: 1px solid var(--border);
   color: var(--text-secondary);
   font-family: inherit;
-  font-size: 0.88rem;
+  font-size: 0.86rem;
   font-weight: 500;
   padding: 10px;
   border-radius: var(--radius-sm);
@@ -983,7 +809,7 @@ textarea { resize: vertical; min-height: 64px; }
   border: 1px solid var(--border);
   border-radius: var(--radius-sm);
   font-family: inherit;
-  font-size: 0.88rem;
+  font-size: 0.86rem;
   padding: 10px 16px;
   cursor: pointer;
   transition: background 0.15s;
@@ -994,7 +820,7 @@ textarea { resize: vertical; min-height: 64px; }
 .btn-danger {
   background: var(--vermelho-dim);
   color: var(--vermelho);
-  border: 1px solid rgba(239,68,68,0.25);
+  border: 1px solid rgba(239,68,68,0.2);
   border-radius: var(--radius-sm);
   font-family: inherit;
   font-size: 0.9rem;
@@ -1012,7 +838,7 @@ textarea { resize: vertical; min-height: 64px; }
 .modal-overlay {
   position: fixed;
   inset: 0;
-  background: rgba(0,0,0,0.65);
+  background: rgba(0,0,0,0.6);
   z-index: 100;
   backdrop-filter: blur(2px);
 }
@@ -1053,13 +879,10 @@ textarea { resize: vertical; min-height: 64px; }
   border: none;
   color: var(--text-secondary);
   font-size: 1rem;
-  width: 32px;
-  height: 32px;
+  width: 30px; height: 30px;
   border-radius: 50%;
   cursor: pointer;
-  display: flex;
-  align-items: center;
-  justify-content: center;
+  display: flex; align-items: center; justify-content: center;
   transition: background 0.15s;
 }
 .modal-close:hover { background: var(--border-light); color: var(--text-primary); }
@@ -1072,30 +895,26 @@ textarea { resize: vertical; min-height: 64px; }
 }
 
 /* ----------------------------------------------------------------
-   18. DETALHE DE TRANSAÇÃO (modal)
+   18. DETALHE DE TRANSAÇÃO
 ---------------------------------------------------------------- */
 .detalhe-valor {
   font-size: 2rem;
   font-weight: 700;
   margin: 8px 0 4px;
 }
-
 .detalhe-data {
   font-size: 0.82rem;
   color: var(--text-secondary);
   margin-bottom: 20px;
 }
-
 .detalhe-info-grid {
   display: flex;
   flex-direction: column;
-  gap: 0;
   background: var(--bg-input);
   border-radius: var(--radius-md);
   overflow: hidden;
   margin-bottom: 20px;
 }
-
 .detalhe-info-row {
   display: flex;
   justify-content: space-between;
@@ -1105,21 +924,10 @@ textarea { resize: vertical; min-height: 64px; }
   font-size: 0.875rem;
 }
 .detalhe-info-row:last-child { border-bottom: none; }
+.detalhe-info-label { color: var(--text-secondary); }
+.detalhe-info-val   { font-weight: 500; text-align: right; }
 
-.detalhe-info-label {
-  color: var(--text-secondary);
-}
-
-.detalhe-info-val {
-  font-weight: 500;
-  text-align: right;
-}
-
-.detalhe-acoes {
-  display: flex;
-  gap: 8px;
-}
-
+.detalhe-acoes { display: flex; gap: 8px; }
 .detalhe-btn {
   flex: 1;
   padding: 12px;
@@ -1128,15 +936,15 @@ textarea { resize: vertical; min-height: 64px; }
   font-size: 0.85rem;
   font-weight: 600;
   cursor: pointer;
-  transition: opacity 0.15s;
   border: none;
+  transition: opacity 0.15s;
 }
 .detalhe-btn:hover { opacity: 0.85; }
-.btn-editar { background: var(--bg-input); color: var(--text-primary); border: 1px solid var(--border) !important; }
-.btn-excluir { background: var(--vermelho-dim); color: var(--vermelho); border: 1px solid rgba(239,68,68,0.25) !important; }
+.btn-editar  { background: var(--bg-input); color: var(--text-primary); border: 1px solid var(--border) !important; }
+.btn-excluir { background: var(--vermelho-dim); color: var(--vermelho); border: 1px solid rgba(239,68,68,0.2) !important; }
 
 /* ----------------------------------------------------------------
-   19. APORTE — texto de destaque
+   19. APORTE
 ---------------------------------------------------------------- */
 .aporte-meta-nome {
   font-size: 1rem;
@@ -1170,7 +978,6 @@ textarea { resize: vertical; min-height: 64px; }
   border: none;
   color: var(--text-muted);
   font-family: inherit;
-  font-size: 0.65rem;
   display: flex;
   flex-direction: column;
   align-items: center;
@@ -1181,25 +988,9 @@ textarea { resize: vertical; min-height: 64px; }
   height: 100%;
   justify-content: center;
 }
-
-.nav-icon {
-  font-size: 1.25rem;
-  line-height: 1;
-  transition: transform 0.15s;
-}
-
-.nav-btn.active {
-  color: var(--text-primary);
-}
-
-.nav-btn.active .nav-icon {
-  transform: translateY(-1px);
-}
-
-.nav-label {
-  font-size: 0.62rem;
-  font-weight: 500;
-}
+.nav-btn svg { width: 20px; height: 20px; }
+.nav-btn.active { color: var(--text-primary); }
+.nav-label { font-size: 0.6rem; font-weight: 500; }
 
 /* ----------------------------------------------------------------
    21. TOAST
@@ -1213,46 +1004,31 @@ textarea { resize: vertical; min-height: 64px; }
   color: var(--bg);
   font-size: 0.875rem;
   font-weight: 600;
-  padding: 12px 24px;
+  padding: 11px 22px;
   border-radius: var(--radius-full);
   z-index: 200;
   white-space: nowrap;
   box-shadow: 0 4px 20px rgba(0,0,0,0.5);
-  animation: toastIn 0.25s ease;
+  animation: toastIn 0.2s ease;
 }
-
 @keyframes toastIn {
-  from { opacity: 0; transform: translateX(-50%) translateY(10px); }
+  from { opacity: 0; transform: translateX(-50%) translateY(8px); }
   to   { opacity: 1; transform: translateX(-50%) translateY(0); }
 }
 
 /* ----------------------------------------------------------------
-   22. CORES DE TEXTO GLOBAIS
+   22. UTILIDADES
 ---------------------------------------------------------------- */
-.verde   { color: var(--verde); }
+.verde    { color: var(--verde); }
 .vermelho { color: var(--vermelho); }
-.azul    { color: var(--azul); }
-.amarelo { color: var(--amarelo); }
+.azul     { color: var(--azul); }
+.amarelo  { color: var(--amarelo); }
+.hidden   { display: none !important; }
 
-/* ----------------------------------------------------------------
-   23. UTILITÁRIOS
----------------------------------------------------------------- */
-.hidden { display: none !important; }
-
-/* ----------------------------------------------------------------
-   24. SCROLLBAR (webkit)
----------------------------------------------------------------- */
 ::-webkit-scrollbar { width: 4px; }
 ::-webkit-scrollbar-track { background: transparent; }
 ::-webkit-scrollbar-thumb { background: var(--border-light); border-radius: 4px; }
 
-/* ----------------------------------------------------------------
-   25. DESKTOP (tela maior que 480px)
----------------------------------------------------------------- */
 @media (min-width: 481px) {
-  body {
-    /* Centraliza e dá uma sombra lateral no desktop */
-    box-shadow: 0 0 0 1px var(--border), 0 0 60px rgba(0,0,0,0.5);
-    min-height: 100dvh;
-  }
+  body { box-shadow: 0 0 0 1px var(--border), 0 0 60px rgba(0,0,0,0.5); }
 }
