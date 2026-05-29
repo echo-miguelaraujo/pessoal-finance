@@ -58,7 +58,7 @@ const SVG_CHECK   = `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" 
 const SUPABASE_URL = 'https://gzeqiohwnytoqgbxkkqi.supabase.co';
 const SUPABASE_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Imd6ZXFpb2h3bnl0b3FnYnhra3FpIiwicm9sZSI6ImFub24iLCJpYXQiOjE3Nzk5ODgwNDQsImV4cCI6MjA5NTU2NDA0NH0.oyFjultOwIAjDeFI3hhYYAkAT4CMKFd0crEtZqMpPfE';
 
-const supabase = window.supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
+const db = window.supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
 
 // Estado centralizado em memória (Optimistic UI)
 const state = {
@@ -78,12 +78,12 @@ const DataLayer = {
     try {
       // Dispara todas as requisições simultaneamente para otimizar a latência de rede
       const [resT, resM, resN, resP, resTC, resC] = await Promise.all([
-        supabase.from('transacoes').select('dados'),
-        supabase.from('metas').select('dados'),
-        supabase.from('negocios').select('dados'),
-        supabase.from('produtos').select('dados'),
-        supabase.from('trans_carteiras').select('dados'),
-        supabase.from('config').select('dados').eq('id', 'global').maybeSingle()
+        db.from('transacoes').select('dados'),
+        db.from('metas').select('dados'),
+        db.from('negocios').select('dados'),
+        db.from('produtos').select('dados'),
+        db.from('trans_carteiras').select('dados'),
+        db.from('config').select('dados').eq('id', 'global').maybeSingle()
       ]);
 
       // Rotina de Migração: Lê o LocalStorage legado e injeta no BD
@@ -110,119 +110,118 @@ const DataLayer = {
 
   async migrarLocalStorage() {
     const t = JSON.parse(localStorage.getItem('fc_transacoes') || '[]');
-    if (t.length) await supabase.from('transacoes').insert(t.map(x => ({id: x.id, dados: x})));
+    if (t.length) await db.from('transacoes').insert(t.map(x => ({id: x.id, dados: x})));
 
     const m = JSON.parse(localStorage.getItem('fc_metas') || '[]');
-    if (m.length) await supabase.from('metas').insert(m.map(x => ({id: x.id, dados: x})));
+    if (m.length) await db.from('metas').insert(m.map(x => ({id: x.id, dados: x})));
 
     const n = JSON.parse(localStorage.getItem('fc_negocios') || '[]');
-    if (n.length) await supabase.from('negocios').insert(n.map(x => ({id: x.id, dados: x})));
+    if (n.length) await db.from('negocios').insert(n.map(x => ({id: x.id, dados: x})));
 
     const p = JSON.parse(localStorage.getItem('fc_produtos') || '[]');
-    if (p.length) await supabase.from('produtos').insert(p.map(x => ({id: x.id, dados: x})));
+    if (p.length) await db.from('produtos').insert(p.map(x => ({id: x.id, dados: x})));
 
     const tc = JSON.parse(localStorage.getItem('fc_trans_carteiras') || '[]');
-    if (tc.length) await supabase.from('trans_carteiras').insert(tc.map(x => ({id: x.id, dados: x})));
+    if (tc.length) await db.from('trans_carteiras').insert(tc.map(x => ({id: x.id, dados: x})));
 
     const c = JSON.parse(localStorage.getItem('fc_config'));
-    if (c) await supabase.from('config').insert([{id: 'global', dados: c}]);
+    if (c) await db.from('config').insert([{id: 'global', dados: c}]);
   },
 
   /* --- Transações Normais --- */
   getTransacoes: () => state.transacoes,
   addTransacao(t) {
     state.transacoes.unshift(t);
-    supabase.from('transacoes').insert([{ id: t.id, dados: t }]).then(handleAsync);
+    db.from('transacoes').insert([{ id: t.id, dados: t }]).then(handleAsync);
   },
   updateTransacao(id, dados) {
     state.transacoes = state.transacoes.map(t => t.id === id ? { ...t, ...dados } : t);
     const item = state.transacoes.find(t => t.id === id);
-    supabase.from('transacoes').update({ dados: item }).eq('id', id).then(handleAsync);
+    db.from('transacoes').update({ dados: item }).eq('id', id).then(handleAsync);
   },
   deleteTransacao(id) {
     state.transacoes = state.transacoes.filter(t => t.id !== id);
-    supabase.from('transacoes').delete().eq('id', id).then(handleAsync);
+    db.from('transacoes').delete().eq('id', id).then(handleAsync);
   },
 
   /* --- Metas --- */
   getMetas: () => state.metas,
   addMeta(m) {
     state.metas.push(m);
-    supabase.from('metas').insert([{ id: m.id, dados: m }]).then(handleAsync);
+    db.from('metas').insert([{ id: m.id, dados: m }]).then(handleAsync);
   },
   updateMeta(id, dados) {
     state.metas = state.metas.map(m => m.id === id ? { ...m, ...dados } : m);
     const item = state.metas.find(m => m.id === id);
-    supabase.from('metas').update({ dados: item }).eq('id', id).then(handleAsync);
+    db.from('metas').update({ dados: item }).eq('id', id).then(handleAsync);
   },
   deleteMeta(id) {
     state.metas = state.metas.filter(m => m.id !== id);
-    supabase.from('metas').delete().eq('id', id).then(handleAsync);
+    db.from('metas').delete().eq('id', id).then(handleAsync);
   },
 
   /* --- Negócios (Carteiras) --- */
   getNegocios: () => state.negocios,
   addNegocio(n) {
     state.negocios.push(n);
-    supabase.from('negocios').insert([{ id: n.id, dados: n }]).then(handleAsync);
+    db.from('negocios').insert([{ id: n.id, dados: n }]).then(handleAsync);
   },
   updateNegocio(id, dados) {
     state.negocios = state.negocios.map(n => n.id === id ? { ...n, ...dados } : n);
     const item = state.negocios.find(n => n.id === id);
-    supabase.from('negocios').update({ dados: item }).eq('id', id).then(handleAsync);
+    db.from('negocios').update({ dados: item }).eq('id', id).then(handleAsync);
   },
   deleteNegocio(id) {
     state.negocios = state.negocios.filter(n => n.id !== id);
-    supabase.from('negocios').delete().eq('id', id).then(handleAsync);
+    db.from('negocios').delete().eq('id', id).then(handleAsync);
 
     // Deleção em cascata (Lógica profunda baseada em chave estrangeira virtual)
     const prods = state.produtos.filter(p => p.negocioId === id);
     state.produtos = state.produtos.filter(p => p.negocioId !== id);
-    prods.forEach(p => supabase.from('produtos').delete().eq('id', p.id).then(handleAsync));
+    prods.forEach(p => db.from('produtos').delete().eq('id', p.id).then(handleAsync));
 
     const trans = state.transCarteiras.filter(tc => tc.negocioId === id);
     state.transCarteiras = state.transCarteiras.filter(tc => tc.negocioId !== id);
-    trans.forEach(tc => supabase.from('trans_carteiras').delete().eq('id', tc.id).then(handleAsync));
+    trans.forEach(tc => db.from('trans_carteiras').delete().eq('id', tc.id).then(handleAsync));
   },
 
   /* --- Produtos --- */
   getProdutos: () => state.produtos,
   addProduto(p) {
     state.produtos.push(p);
-    supabase.from('produtos').insert([{ id: p.id, dados: p }]).then(handleAsync);
+    db.from('produtos').insert([{ id: p.id, dados: p }]).then(handleAsync);
   },
   updateProduto(id, dados) {
     state.produtos = state.produtos.map(p => p.id === id ? { ...p, ...dados } : p);
     const item = state.produtos.find(p => p.id === id);
-    supabase.from('produtos').update({ dados: item }).eq('id', id).then(handleAsync);
+    db.from('produtos').update({ dados: item }).eq('id', id).then(handleAsync);
   },
   deleteProduto(id) {
     state.produtos = state.produtos.filter(p => p.id !== id);
-    supabase.from('produtos').delete().eq('id', id).then(handleAsync);
+    db.from('produtos').delete().eq('id', id).then(handleAsync);
   },
 
   /* --- Transações de Carteira (Negócios) --- */
   getTransCarteiras: () => state.transCarteiras,
   addTransCarteira(t) {
     state.transCarteiras.unshift(t);
-    supabase.from('trans_carteiras').insert([{ id: t.id, dados: t }]).then(handleAsync);
+    db.from('trans_carteiras').insert([{ id: t.id, dados: t }]).then(handleAsync);
   },
   updateTransCarteira(id, dados) {
     state.transCarteiras = state.transCarteiras.map(t => t.id === id ? { ...t, ...dados } : t);
     const item = state.transCarteiras.find(t => t.id === id);
-    supabase.from('trans_carteiras').update({ dados: item }).eq('id', id).then(handleAsync);
+    db.from('trans_carteiras').update({ dados: item }).eq('id', id).then(handleAsync);
   },
   deleteTransCarteira(id) {
     state.transCarteiras = state.transCarteiras.filter(t => t.id !== id);
-    supabase.from('trans_carteiras').delete().eq('id', id).then(handleAsync);
+    db.from('trans_carteiras').delete().eq('id', id).then(handleAsync);
   },
 
   /* --- Configurações globais --- */
   getConfig: () => state.config,
   setConfig: (config) => {
     state.config = config;
-    // BUG FIX: upsert é atômico e garante que o registro seja criado ou atualizado sem race condition
-    supabase.from('config').upsert([{ id: 'global', dados: config }]).then(handleAsync);
+    db.from('config').upsert([{ id: 'global', dados: config }]).then(handleAsync);
   },
 
   /* --- Limpar Tudo --- */
@@ -234,11 +233,11 @@ const DataLayer = {
     state.transCarteiras = [];
     
     // Purga assíncrona orientada pela desigualdade primária (atinge todos os registros dinâmicos gerados)
-    supabase.from('transacoes').delete().neq('id', '0').then(handleAsync);
-    supabase.from('metas').delete().neq('id', '0').then(handleAsync);
-    supabase.from('negocios').delete().neq('id', '0').then(handleAsync);
-    supabase.from('produtos').delete().neq('id', '0').then(handleAsync);
-    supabase.from('trans_carteiras').delete().neq('id', '0').then(handleAsync);
+    db.from('transacoes').delete().neq('id', '0').then(handleAsync);
+    db.from('metas').delete().neq('id', '0').then(handleAsync);
+    db.from('negocios').delete().neq('id', '0').then(handleAsync);
+    db.from('produtos').delete().neq('id', '0').then(handleAsync);
+    db.from('trans_carteiras').delete().neq('id', '0').then(handleAsync);
     localStorage.clear();
   }
 };
@@ -282,13 +281,10 @@ document.addEventListener('DOMContentLoaded', async () => {
   document.body.style.transition = 'opacity 0.3s ease';
 
   try {
-    // Espera a resolução das requisições assíncronas do backend e efetua a alocação
     await DataLayer.init();
   } catch (e) {
-    // BUG FIX: captura erros de rede/CORS/Supabase que impediam a renderização
     console.error("Erro ao inicializar backend, operando offline:", e);
   } finally {
-    // BUG FIX: sempre restaura a opacidade, independente de sucesso ou falha
     document.body.style.opacity = '1';
   }
 
@@ -1723,4 +1719,3 @@ function showToast(msg) {
   if (toastTimer) clearTimeout(toastTimer);
   toastTimer = setTimeout(() => el.classList.add('hidden'), 2800);
 }
-
