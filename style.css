@@ -1616,3 +1616,313 @@ textarea { resize: vertical; min-height: 64px; }
 @media (min-width: 481px) {
   body { box-shadow: 0 0 0 1px var(--border), 0 0 60px rgba(0,0,0,0.5); }
 }
+
+/* ================================================================
+   RESPONSIVIDADE — TABLET & DESKTOP
+   (adicionado sem alterar nada do funcionamento existente)
+   ================================================================ */
+
+/* ----------------------------------------------------------------
+   TABLET: 481px → 768px
+   Aumenta levemente o max-width e ajusta densidades de UI
+---------------------------------------------------------------- */
+@media (min-width: 481px) and (max-width: 768px) {
+  body {
+    max-width: 560px;
+    font-size: 15px;
+  }
+
+  .modal,
+  #bottom-nav {
+    max-width: 560px;
+  }
+
+  .modal-dialog-inner {
+    max-width: 440px;
+  }
+
+  /* Saldo com fonte maior */
+  .saldo-total { font-size: 2.8rem; }
+
+  /* Cards de relatório em linha */
+  .relatorio-cards {
+    grid-template-columns: repeat(3, 1fr);
+  }
+
+  /* Ações rápidas com mais espaço */
+  .btn-acao { padding: 16px 12px; font-size: 0.92rem; }
+
+  /* Nav labels ligeiramente maiores */
+  .nav-label { font-size: 0.6rem; }
+
+  /* Inputs e selects um pouco maiores */
+  input[type="text"],
+  input[type="number"],
+  input[type="date"],
+  input[type="email"],
+  textarea,
+  select {
+    font-size: 0.95rem;
+    padding: 12px 14px;
+  }
+}
+
+/* ----------------------------------------------------------------
+   DESKTOP: 769px+
+   Layout em duas colunas: sidebar de navegação + conteúdo principal
+---------------------------------------------------------------- */
+@media (min-width: 769px) {
+  /* Remove a restrição de largura do body e do fundo */
+  body {
+    max-width: 100%;
+    box-shadow: none;
+    background: #0a0a0a;
+    display: flex;
+    min-height: 100dvh;
+  }
+
+  /* ---- SIDEBAR DE NAVEGAÇÃO (substitui o bottom-nav) ---- */
+  #bottom-nav {
+    position: fixed;
+    top: 0;
+    left: 0;
+    bottom: 0;
+    width: 220px;
+    height: 100dvh;
+    max-width: 220px;
+    flex-direction: column;
+    justify-content: flex-start;
+    align-items: stretch;
+    padding: 28px 0 24px;
+    border-top: none;
+    border-right: 1px solid var(--border);
+    background: var(--bg-card);
+    transform: none;
+    left: 0;
+  }
+
+  /* Logo / título no topo da sidebar */
+  #bottom-nav::before {
+    content: 'Finanças';
+    display: block;
+    font-size: 1rem;
+    font-weight: 800;
+    color: var(--text-primary);
+    letter-spacing: -0.5px;
+    padding: 0 20px 28px;
+    border-bottom: 1px solid var(--border);
+    margin-bottom: 12px;
+  }
+
+  .nav-btn {
+    flex-direction: row;
+    justify-content: flex-start;
+    height: auto;
+    gap: 12px;
+    padding: 12px 20px;
+    border-radius: 0;
+    font-size: 0.88rem;
+    width: 100%;
+  }
+
+  .nav-btn.active {
+    background: rgba(255,255,255,0.06);
+    border-left: 3px solid var(--text-primary);
+  }
+
+  .nav-btn:not(.active) {
+    border-left: 3px solid transparent;
+  }
+
+  .nav-btn svg {
+    width: 18px;
+    height: 18px;
+    flex-shrink: 0;
+  }
+
+  .nav-label {
+    font-size: 0.86rem;
+    font-weight: 500;
+    letter-spacing: 0;
+  }
+
+  /* ---- ÁREA PRINCIPAL DO APP ---- */
+  #app {
+    margin-left: 220px;
+    width: calc(100% - 220px);
+    max-width: 820px;
+    padding-bottom: 40px;
+    min-height: 100dvh;
+  }
+
+  /* Centraliza a área de conteúdo na tela */
+  .tela {
+    max-width: 820px;
+  }
+
+  /* Header interno das telas */
+  .app-header {
+    padding: 28px 28px 18px;
+  }
+
+  /* Padding geral aumentado para desktop */
+  .saldo-card {
+    margin: 8px 24px 0;
+    padding: 28px 28px 24px;
+  }
+
+  .saldo-total { font-size: 3rem; letter-spacing: -2px; }
+
+  .acoes-rapidas {
+    margin: 20px 24px 0;
+    gap: 14px;
+  }
+
+  .btn-acao {
+    padding: 18px 14px;
+    font-size: 0.95rem;
+    border-radius: var(--radius-md);
+  }
+
+  .resumo-mes {
+    margin: 24px 28px 0;
+  }
+
+  .secao-header {
+    padding: 0 28px;
+  }
+
+  .transacao-item {
+    padding: 14px 28px;
+  }
+
+  .grupo-data-label {
+    padding: 12px 28px 4px;
+  }
+
+  .filtros {
+    padding: 10px 24px 6px;
+  }
+
+  .registrar-opcoes {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 14px;
+    padding: 8px 24px 12px;
+  }
+
+  .card-opcao {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 12px;
+    padding: 20px;
+  }
+
+  .lista-metas {
+    padding: 0 24px;
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 14px;
+  }
+
+  .meta-card {
+    margin-bottom: 0;
+  }
+
+  .lista-negocios-container {
+    padding: 4px 24px 24px;
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 14px;
+    align-items: start;
+  }
+
+  /* Relatório em 3 colunas confortável */
+  .relatorio-mes-wrap {
+    padding: 12px 28px 16px;
+  }
+
+  .relatorio-cards {
+    padding: 0 24px 20px;
+    gap: 12px;
+  }
+
+  .relatorio-card {
+    padding: 18px 16px;
+  }
+
+  .relatorio-card-label { font-size: 0.7rem; }
+  .relatorio-card-valor { font-size: 1rem; }
+
+  .secao-relatorio {
+    padding: 0 24px 20px;
+  }
+
+  .config-section {
+    padding: 24px 24px;
+    max-width: 560px;
+  }
+
+  /* Modais bottom-sheet viram modais centralizados */
+  .modal {
+    top: 50%;
+    bottom: auto;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    border-radius: var(--radius-lg);
+    max-height: 88dvh;
+    width: calc(100% - 48px);
+    max-width: 520px;
+    animation: scaleInModal 0.22s cubic-bezier(0.34, 1.4, 0.64, 1);
+  }
+
+  @keyframes scaleInModal {
+    from { opacity: 0; transform: translate(-50%, -48%) scale(0.95); }
+    to   { opacity: 1; transform: translate(-50%, -50%) scale(1); }
+  }
+
+  /* Overlay cobre a tela toda incluindo a sidebar */
+  .modal-overlay {
+    z-index: 100;
+  }
+
+  /* Toast acima da barra lateral */
+  .toast {
+    bottom: 28px;
+    left: calc(220px + 24px);
+    transform: none;
+  }
+
+  @keyframes toastIn {
+    from { opacity: 0; transform: translateY(8px); }
+    to   { opacity: 1; transform: translateY(0); }
+  }
+}
+
+/* ----------------------------------------------------------------
+   DESKTOP LARGO: 1200px+
+   Aumenta mais a área de conteúdo
+---------------------------------------------------------------- */
+@media (min-width: 1200px) {
+  #bottom-nav {
+    width: 240px;
+    max-width: 240px;
+  }
+
+  #app {
+    margin-left: 240px;
+    width: calc(100% - 240px);
+    max-width: 920px;
+  }
+
+  #bottom-nav::before {
+    font-size: 1.05rem;
+  }
+
+  .saldo-total { font-size: 3.4rem; }
+
+  .lista-metas,
+  .lista-negocios-container {
+    grid-template-columns: 1fr 1fr;
+  }
+}
