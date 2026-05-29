@@ -221,11 +221,8 @@ const DataLayer = {
   getConfig: () => state.config,
   setConfig: (config) => {
     state.config = config;
-    supabase.from('config').update({ dados: config }).eq('id', 'global')
-      .then(async ({ error }) => {
-         // Se a atualização falhar porque o registro 'global' não existe, ele executa a inserção.
-         if (error) await supabase.from('config').insert([{ id: 'global', dados: config }]);
-      });
+    // BUG FIX: upsert é atômico e garante que o registro seja criado ou atualizado sem race condition
+    supabase.from('config').upsert([{ id: 'global', dados: config }]).then(handleAsync);
   },
 
   /* --- Limpar Tudo --- */
@@ -284,10 +281,16 @@ document.addEventListener('DOMContentLoaded', async () => {
   document.body.style.opacity = '0.4'; 
   document.body.style.transition = 'opacity 0.3s ease';
 
-  // Espera a resolução das requisições assíncronas do backend e efetua a alocação
-  await DataLayer.init();
-
-  document.body.style.opacity = '1';
+  try {
+    // Espera a resolução das requisições assíncronas do backend e efetua a alocação
+    await DataLayer.init();
+  } catch (e) {
+    // BUG FIX: captura erros de rede/CORS/Supabase que impediam a renderização
+    console.error("Erro ao inicializar backend, operando offline:", e);
+  } finally {
+    // BUG FIX: sempre restaura a opacidade, independente de sucesso ou falha
+    document.body.style.opacity = '1';
+  }
 
   // O fluxo de renderização retoma suas funções de forma estritamente síncrona
   carregarConfiguracoes();
